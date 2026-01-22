@@ -1,310 +1,565 @@
-// ==========================================
-//  SMART HOME CONTROLLER - ULTIMATE VERSION
-// ==========================================
+// Konfigurasi MQTT - Menggunakan EMQX broker
+const MQTT_BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
+const MQTT_TOPIC_PREFIX = 'smart_home/';
 
-// --- 1. KONFIGURASI ---
-const MQTT_BROKER = 'wss://broker.emqx.io:8084/mqtt';
-const TOPIC_PREFIX = 'smart_home/';
-
-// --- 2. VARIABEL GLOBAL ---
-let client = null;
+// Variabel global
+let mqttClient = null;
 let isConnected = false;
 
-// Mapping ID HTML ke Perintah Arduino
-// Format: { id_tombol: [IndexArduino, NamaPerangkat] }
-// Pastikan ID di HTML Anda sesuai dengan kunci di sini!
-const deviceMap = {
-    'btn-lampu-utama':  { index: 0, name: 'Lampu Utama' },
-    'btn-lampu-kamar':  { index: 1, name: 'Lampu Kamar' },
-    'btn-lampu-tamu':   { index: 2, name: 'Lampu Tamu' },
-    'btn-terminal':     { index: 3, name: 'Colokan Terminal' },
-    'btn-kipas':        { index: 6, name: 'Kipas' },
-    'btn-pompa':        { index: 7, name: 'Pompa' },
-    'btn-valve':        { index: 8, name: 'Valve' },
-    'btn-door':         { index: 9, name: 'Pintu' },
-    'btn-tirai-buka':   { command: 'TIRAIBUKA', name: 'Tirai' },
-    'btn-tirai-tutup':  { command: 'TIRAITUTUP', name: 'Tirai' }
+// Mapping perangkat Arduino dengan perintah ON/OFF baru
+const deviceCommands = {
+    // Format: index: {on: 'perintah_nyala', off: 'perintah_mati'}
+    0: { on: 'ON 0', off: 'OFF 0' }, // Lampu Utama
+    1: { on: 'ON 1', off: 'OFF 1' }, // Lampu Kamar
+    2: { on: 'ON 2', off: 'OFF 2' }, // Lampu Tamu
+    3: { on: 'ON 3', off: 'OFF 3' }, // Colokan Terminal
+    6: { on: 'KIPASON 50', off: 'KIPASOFF' }, // Kipas
+    7: { on: 'ON 7', off: 'OFF 7' }, // Pompa
+    8: { on: 'ON 8', off: 'OFF 8' }, // Solenoid Valve
+    9: { on: 'SOLENOID_DOOR', off: null }, // Solenoid Door (hanya nyala)
+    // Tirai - tetap pakai command khusus
+    'tirai_buka': 'TIRAIBUKA',
+    'tirai_tutup': 'TIRAITUTUP',
+    'tirai_stop': 'TIRAIOFF'
 };
 
-// --- 3. INISIALISASI SAAT LOAD ---
-window.onload = function() {
-    startClock();       // Jalankan Jam
-    connectMQTT();      // Jalankan MQTT
-    setupEventListeners(); // Siapkan tombol
+// Nama perangkat sesuai Arduino
+const deviceNames = {
+    0: "Lampu Utama",
+    1: "Lampu Kamar", 
+    2: "Lampu Tamu",
+    3: "Colokan Terminal",
+    4: "Tirai Tutup",
+    5: "Tirai Buka",
+    6: "Kipas",
+    7: "Pompa Penyiram",
+    8: "Solenoid Valve",
+    9: "Solenoid Door",
+    10: "Otomatis Pompa",
+    11: "Otomatis Lampu"
 };
 
-// --- 4. FITUR JAM & TANGGAL (REAL TIME) ---
-function startClock() {
-    updateTime(); // Jalankan sekali di awal
-    setInterval(updateTime, 1000); // Update tiap 1 detik
-}
+// Mapping perangkat ke UI element ID
+const deviceUI = {
+    0: { element: 'lamp', type: 'lampu' },
+    6: { element: 'ac', type: 'kipas' },
+    9: { element: 'door', type: 'pintu' },
+    1: { element: null, type: 'lampu' },
+    2: { element: null, type: 'lampu' },
+    3: { element: null, type: 'terminal' },
+    7: { element: null, type: 'pompa' },
+    8: { element: null, type: 'valve' }
+};
 
-function updateTime() {
-    const now = new Date();
+// Status perangkat default
+let deviceStatus = {
+    lamp: "Mati",      // Lampu Utama (index 0)
+    ac: "Mati",        // Kipas (index 6)
+    door: "Terkunci"   // Solenoid Door (index 9)
+};
+
+// Status untuk semua perangkat
+let allDeviceStatus = {
+    0: false, // Lampu Utama
+    1: false, // Lampu Kamar
+    2: false, // Lampu Tamu
+    3: false, // Colokan Terminal
+    6: false, // Kipas
+    7: false, // Pompa
+    8: false, // Solenoid Valve
+    9: false  // Solenoid Door
+};
+
+// Fungsi untuk koneksi MQTT
+function connectToMQTT() {
+    console.log('Menghubungkan ke MQTT Broker EMQX...');
     
-    // Format Jam (14:05:30)
-    const timeString = now.toLocaleTimeString('id-ID', { 
-        hour: '2-digit', minute: '2-digit', second: '2-digit' 
-    });
-    
-    // Format Tanggal (Kamis, 22 Januari 2026)
-    const dateString = now.toLocaleDateString('id-ID', { 
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
-    });
-
-    // Update ke HTML (Pastikan ada elemen dengan class/id ini)
-    const elTime = document.getElementById('jam-digital') || document.querySelector('.time');
-    const elDate = document.getElementById('tanggal-digital') || document.querySelector('.date');
-
-    if (elTime) elTime.innerText = timeString;
-    if (elDate) elDate.innerText = dateString;
-}
-
-// --- 5. KONEKSI MQTT ---
-function connectMQTT() {
-    updateStatusConn("Menghubungkan...", "orange");
-
     const options = {
-        clientId: 'Web_' + Math.random().toString(16).substr(2, 8),
+        clientId: 'smart_home_web_' + Math.random().toString(16).substr(2, 8),
         clean: true,
-        reconnectPeriod: 5000,
+        reconnectPeriod: 1000,
+        connectTimeout: 30000,
     };
 
-    // Pastikan library mqtt.min.js terload di HTML
-    client = mqtt.connect(MQTT_BROKER, options);
+    mqttClient = mqtt.connect(MQTT_BROKER_URL, options);
 
-    client.on('connect', () => {
-        console.log("✅ MQTT Terhubung!");
+    mqttClient.on('connect', function () {
+        console.log('✅ Terhubung ke MQTT Broker EMQX');
         isConnected = true;
-        updateStatusConn("Online", "limegreen");
-
-        // Subscribe Topik
-        client.subscribe(TOPIC_PREFIX + 'response'); // Balasan perintah
-        client.subscribe(TOPIC_PREFIX + 'status');   // Status alat
-        client.subscribe(TOPIC_PREFIX + 'sensor');   // Data sensor
-        client.subscribe(TOPIC_PREFIX + 'voice_reply'); // Suara bot
-
-        // Minta Status Awal ke Arduino (Supaya tidak loading terus)
-        setTimeout(() => { publishCommand("STATUS"); }, 1000);
-    });
-
-    client.on('message', (topic, message) => {
-        handleMessage(topic, message.toString());
-    });
-
-    client.on('close', () => {
-        isConnected = false;
-        updateStatusConn("Offline", "red");
-    });
-    
-    client.on('error', (err) => {
-        console.error("MQTT Error: ", err);
-        updateStatusConn("Error", "red");
-    });
-}
-
-// --- 6. PENGOLAHAN PESAN MASUK (LOGIC UTAMA) ---
-function handleMessage(topic, msg) {
-    console.log(`Pesan [${topic}]: ${msg}`);
-
-    // A. SUARA DARI PYTHON
-    if (topic.includes('voice_reply')) {
-        addLog('Bot', msg);
-        speak(msg);
-    }
-    
-    // B. DATA SENSOR
-    else if (topic.includes('sensor')) {
-        // Format: "SENSOR: LDR:100, Soil:200..."
-        if (msg.startsWith("SENSOR:")) {
-            const data = msg.replace("SENSOR:", "").trim();
-            updateSensorUI(data); // Update tampilan sensor
-        }
-    }
-    
-    // C. STATUS PERANGKAT
-    else if (topic.includes('response') || topic.includes('status')) {
-        // Abaikan pesan sistem internal
-        if (msg.includes("SISTEM") || msg.includes("Catatan:")) return;
         
-        // Cek Format "Nama Alat: ON/OFF"
-        if (msg.includes(":")) {
-            const parts = msg.split(":");
-            const devName = parts[0].trim(); // Misal: "Lampu Utama"
-            const devStatus = parts[1].trim(); // Misal: "ON"
-            
-            updateDeviceUI(devName, devStatus); // Ubah warna tombol
-            addLog('System', `${devName} -> ${devStatus}`);
-        } else {
-            addLog('System', msg);
-        }
+        subscribeToTopics();
+        requestInitialStatus();
+        updateConnectionStatus(true);
+    });
+
+    mqttClient.on('message', function (topic, message) {
+        handleIncomingMessage(topic, message.toString());
+    });
+
+    mqttClient.on('error', function (error) {
+        console.error('MQTT Error:', error);
+        updateConnectionStatus(false);
+    });
+
+    mqttClient.on('close', function () {
+        console.log('MQTT disconnected');
+        isConnected = false;
+        updateConnectionStatus(false);
+    });
+}
+
+// Subscribe ke topik
+function subscribeToTopics() {
+    const topics = [
+        MQTT_TOPIC_PREFIX + 'response',
+        MQTT_TOPIC_PREFIX + 'status',
+        MQTT_TOPIC_PREFIX + 'sensor'
+    ];
+
+    topics.forEach(topic => {
+        mqttClient.subscribe(topic, { qos: 0 }, function (err) {
+            if (!err) {
+                console.log('Subscribed to:', topic);
+            }
+        });
+    });
+}
+
+// Handle pesan masuk dari MQTT
+function handleIncomingMessage(topic, message) {
+    console.log('Pesan diterima:', topic, '=>', message);
+    
+    // Filter pesan yang tidak perlu
+    if (message.includes("SISTEM KONTROL RUMAH") || 
+        message.includes("PERINTAH SERIAL:") ||
+        message.includes("Catatan:") ||
+        message === "===============================") {
+        return; // Abaikan pesan header/menu
+    }
+    
+    if (topic.includes('response')) {
+        parseArduinoResponse(message);
+    } else if (topic.includes('status')) {
+        updateStatusFromMessage(message);
+    } else if (topic.includes('sensor')) {
+        processSensorData(message);
     }
 }
 
-// --- 7. UPDATE TAMPILAN (UI) REAL-TIME ---
-
-// Mengubah Warna Tombol/Status Card berdasarkan respon Arduino
-function updateDeviceUI(name, status) {
-    const isON = (status === 'ON' || status === 'Terbuka');
+// Parsing response dari Arduino
+function parseArduinoResponse(message) {
+    console.log('Parsing response:', message);
     
-    // Loop mapping untuk mencari tombol yang cocok dengan nama perangkat
-    for (const [btnID, config] of Object.entries(deviceMap)) {
-        if (config.name && config.name.toLowerCase() === name.toLowerCase()) {
-            const btn = document.getElementById(btnID);
-            if (btn) {
-                // Ubah Tampilan Tombol
-                if (isON) {
-                    btn.classList.add('active'); // Tambah class CSS 'active'
-                    btn.style.backgroundColor = "#2ecc71"; // Hijau
-                    btn.innerText = "NYALA / BUKA";
-                } else {
-                    btn.classList.remove('active');
-                    btn.style.backgroundColor = "#e74c3c"; // Merah
-                    btn.innerText = "MATI / TUTUP";
+    // Format: "Lampu Utama: ON" atau "Lampu Utama: OFF"
+    if (message.includes(':')) {
+        const parts = message.split(':');
+        if (parts.length >= 2) {
+            const deviceName = parts[0].trim();
+            const status = parts[1].trim();
+            
+            // Tampilkan di chat
+            addChatMessage('Arduino', `${deviceName}: ${status}`);
+            
+            // Update UI status
+            updateUIFromResponse(deviceName, status);
+        }
+    } 
+    // Untuk pesan khusus
+    else if (message.includes('Solenoid Door:') || message.includes('Tirai:')) {
+        addChatMessage('Arduino', message);
+        
+        if (message.includes('Solenoid Door:')) {
+            updateDeviceStatus('door', message.includes('AKTIF') ? 'Terbuka' : 'Terkunci');
+        }
+    }
+    else if (message.startsWith('>>')) {
+        // Echo dari perintah yang dikirim
+        const cmd = message.substring(3).trim();
+        addChatMessage('Arduino', `Menerima: ${cmd}`);
+    }
+    else if (message.startsWith('ERROR:')) {
+        addChatMessage('Arduino', message);
+    }
+    else if (message.includes('=== STATUS SISTEM ===')) {
+        // Status lengkap - bisa ditampilkan di chat
+        addChatMessage('Arduino', '📋 Status sistem diterima');
+    }
+    else if (message.includes('ESP32:')) {
+        // Status dari ESP32
+        addChatMessage('System', message);
+    }
+}
+
+// Update UI dari response
+function updateUIFromResponse(deviceName, status) {
+    const lowerDeviceName = deviceName.toLowerCase();
+    const lowerStatus = status.toLowerCase();
+    const isOn = lowerStatus.includes('on') || lowerStatus.includes('aktif');
+    
+    // Cari device berdasarkan nama
+    for (const [index, name] of Object.entries(deviceNames)) {
+        if (lowerDeviceName.includes(name.toLowerCase())) {
+            const idx = parseInt(index);
+            allDeviceStatus[idx] = isOn;
+            
+            // Update UI utama jika ada
+            if (deviceUI[idx]) {
+                const uiElement = deviceUI[idx].element;
+                if (uiElement) {
+                    updateDeviceStatus(uiElement, isOn ? 'Nyala' : 'Mati');
                 }
             }
             
-            // Jika ada teks status terpisah
-            const statusText = document.getElementById(`status-${btnID}`);
-            if (statusText) {
-                statusText.innerText = status;
-                statusText.style.color = isON ? "green" : "red";
-            }
+            console.log(`Updated ${name}: ${isOn ? 'ON' : 'OFF'}`);
+            break;
         }
     }
 }
 
-// Update Angka Sensor di Web
-function updateSensorUI(dataString) {
-    // Input: "LDR:800, Soil:1000, Temp:29.50"
-    addLog('Sensor', dataString);
-    
-    // Parsing manual (Sederhana)
-    const parts = dataString.split(",");
-    parts.forEach(part => {
-        if (part.includes("Temp:")) {
-            const val = part.split(":")[1].trim();
-            const el = document.getElementById('nilai-suhu');
-            if(el) el.innerText = val + " °C";
+// Update status dari message status topic
+function updateStatusFromMessage(message) {
+    // Format dari Arduino: "Lampu Utama: ON" per baris
+    if (message.includes(':')) {
+        const parts = message.split(':');
+        if (parts.length === 2) {
+            const deviceName = parts[0].trim();
+            const status = parts[1].trim();
+            updateUIFromResponse(deviceName, status);
         }
-        if (part.includes("LDR:")) {
-            const val = part.split(":")[1].trim();
-            const el = document.getElementById('nilai-cahaya');
-            if(el) el.innerText = val;
+    }
+}
+
+// Process sensor data
+function processSensorData(message) {
+    if (message.startsWith("LDR:") || message.startsWith("Soil:") || message.startsWith("DHT11:")) {
+        addChatMessage('Sensor', message);
+    }
+}
+
+// Update device status di UI
+function updateDeviceStatus(device, status) {
+    deviceStatus[device] = status;
+    
+    const element = document.getElementById(device);
+    if (element) {
+        element.textContent = status;
+        updateStatusColor(element, status);
+    }
+}
+
+// Update warna status
+function updateStatusColor(element, status) {
+    if (!element) return;
+    
+    if (status.includes('Nyala') || status.includes('Terbuka')) {
+        element.style.color = '#4CAF50';
+        element.style.fontWeight = 'bold';
+    } else {
+        element.style.color = '#f44336';
+        element.style.fontWeight = 'normal';
+    }
+}
+
+// Request status awal
+function requestInitialStatus() {
+    if (!isConnected) return;
+    
+    setTimeout(() => {
+        sendSerialCommand('STATUS');
+    }, 1000);
+}
+
+// Kirim perintah serial ke Arduino (via MQTT)
+function sendSerialCommand(command) {
+    if (!isConnected || !mqttClient) {
+        addChatMessage('System', '❌ Tidak terhubung ke server MQTT');
+        return;
+    }
+    
+    const topic = MQTT_TOPIC_PREFIX + 'control';
+    
+    console.log('Mengirim perintah:', command);
+    
+    mqttClient.publish(topic, command, { qos: 0 }, function (err) {
+        if (err) {
+            console.error('Gagal mengirim perintah:', err);
+            addChatMessage('System', '❌ Gagal mengirim perintah');
+        } else {
+            // Tampilkan di chat bahwa perintah telah dikirim
+            addChatMessage('Anda', command);
         }
     });
 }
 
-function updateStatusConn(text, color) {
-    const el = document.getElementById('status-koneksi');
-    if (el) {
-        el.innerText = text;
-        el.style.color = color;
-    }
-}
-
-function addLog(sender, msg) {
-    const box = document.getElementById('chat-box'); // Pastikan ID ini ada
-    if (box) {
-        const div = document.createElement('div');
-        div.innerHTML = `<b>${sender}:</b> ${msg}`;
-        div.style.borderBottom = "1px solid #eee";
-        div.style.padding = "2px";
-        box.appendChild(div);
-        box.scrollTop = box.scrollHeight;
-    }
-}
-
-// --- 8. KONTROL & PERINTAH ---
-
-function publishCommand(cmd) {
-    if (isConnected) {
-        client.publish(TOPIC_PREFIX + 'control', cmd);
-        console.log("Kirim:", cmd);
-    } else {
-        alert("Koneksi MQTT Terputus!");
-    }
-}
-
-// Fungsi Panggil Perangkat via Tombol
-function toggleDevice(btnID) {
-    const config = deviceMap[btnID];
-    if (!config) return;
-
-    // Jika Tirai (Punya command khusus)
-    if (config.command) {
-        publishCommand(config.command);
-    } 
-    // Jika Pintu
-    else if (config.index === 9) {
-        publishCommand("SOLENOID_DOOR");
-    }
-    // Jika Perangkat Biasa (Lampu/Kipas/dll)
-    else {
-        // Cek status saat ini dari warna tombol atau class
-        const btn = document.getElementById(btnID);
-        const isCurrentlyOn = btn.style.backgroundColor === "rgb(46, 204, 113)"; // Cek warna hijau
-        
-        // Kirim kebalikan status
-        const action = isCurrentlyOn ? "OFF" : "ON";
-        
-        // Khusus Kipas
-        if (config.index === 6) {
-             publishCommand(isCurrentlyOn ? "KIPASOFF" : "KIPASON");
+// Fungsi untuk mengirim perintah berdasarkan device index
+function sendDeviceCommand(deviceIndex, action) {
+    if (deviceCommands[deviceIndex]) {
+        const command = deviceCommands[deviceIndex][action];
+        if (command) {
+            sendSerialCommand(command);
+            return true;
         } else {
-             publishCommand(`${action} ${config.index}`);
+            addChatMessage('System', `Perintah ${action} tidak tersedia untuk perangkat ini`);
+            return false;
         }
+    } else {
+        addChatMessage('System', `Perangkat index ${deviceIndex} tidak dikenali`);
+        return false;
     }
 }
 
-// Setup Klik Tombol Otomatis (Event Listener)
-function setupEventListeners() {
-    // Cari semua tombol yang ada di deviceMap dan beri fungsi klik
-    for (const btnID of Object.keys(deviceMap)) {
-        const btn = document.getElementById(btnID);
-        if (btn) {
-            btn.addEventListener('click', () => toggleDevice(btnID));
-        }
+// Fungsi khusus untuk tirai
+function sendTiraiCommand(action) {
+    if (deviceCommands[action]) {
+        sendSerialCommand(deviceCommands[action]);
+        return true;
+    }
+    return false;
+}
+
+// Fungsi chat
+function sendMessage() {
+    const input = document.getElementById('userInput');
+    const message = input.value.trim();
+    
+    if (message === '') return;
+    
+    addChatMessage('Anda', message);
+    processCommand(message);
+    input.value = '';
+}
+
+// Proses perintah dari chat
+function processCommand(message) {
+    const lowerMessage = message.toLowerCase();
+    
+    // Perintah sederhana
+    if (lowerMessage === 'status') {
+        sendSerialCommand('STATUS');
+        addChatMessage('System', '📋 Meminta status sistem...');
+        return;
+    }
+    else if (lowerMessage === 'buka pintu' || lowerMessage === 'pintu buka') {
+        sendSerialCommand('SOLENOID_DOOR');
+        addChatMessage('System', '🚪 Membuka pintu (5 detik)...');
+        return;
+    }
+    else if (lowerMessage === 'tirai buka') {
+        sendSerialCommand('TIRAIBUKA');
+        addChatMessage('System', '🪟 Membuka tirai (500ms)...');
+        return;
+    }
+    else if (lowerMessage === 'tirai tutup') {
+        sendSerialCommand('TIRAITUTUP');
+        addChatMessage('System', '🪟 Menutup tirai (500ms)...');
+        return;
+    }
+    else if (lowerMessage === 'tirai stop' || lowerMessage === 'stop tirai') {
+        sendSerialCommand('TIRAIOFF');
+        addChatMessage('System', '🛑 Menghentikan tirai...');
+        return;
+    }
+    else if (lowerMessage === 'nyala semua' || lowerMessage === 'nyalakan semua') {
+        // Nyalakan semua perangkat utama
+        const devicesToTurnOn = [0, 1, 2, 3, 6, 7, 8];
+        devicesToTurnOn.forEach((deviceId, index) => {
+            setTimeout(() => {
+                sendDeviceCommand(deviceId, 'on');
+            }, index * 300);
+        });
+        addChatMessage('System', '💡 Menyalakan semua perangkat...');
+        return;
+    }
+    else if (lowerMessage === 'mati semua' || lowerMessage === 'matikan semua') {
+        // Matikan semua perangkat
+        const devicesToTurnOff = [0, 1, 2, 3, 6, 7, 8];
+        devicesToTurnOff.forEach((deviceId, index) => {
+            setTimeout(() => {
+                sendDeviceCommand(deviceId, 'off');
+            }, index * 300);
+        });
+        addChatMessage('System', '🔌 Mematikan semua perangkat...');
+        return;
     }
     
-    // Tombol Mic
-    const btnMic = document.getElementById('btn-mic');
-    if(btnMic) btnMic.addEventListener('click', startVoiceRecognition);
-}
-
-// --- 9. SUARA (VOICE FEATURES) ---
-
-function speak(text) {
-    if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = 'id-ID';
-        window.speechSynthesis.speak(u);
+    // Perintah dengan parameter - lampu
+    if (lowerMessage.includes('lampu utama')) {
+        handleDeviceCommand(0, lowerMessage, 'Lampu Utama');
+    }
+    else if (lowerMessage.includes('lampu kamar')) {
+        handleDeviceCommand(1, lowerMessage, 'Lampu Kamar');
+    }
+    else if (lowerMessage.includes('lampu tamu')) {
+        handleDeviceCommand(2, lowerMessage, 'Lampu Tamu');
+    }
+    else if (lowerMessage.includes('colokan') || lowerMessage.includes('terminal')) {
+        handleDeviceCommand(3, lowerMessage, 'Colokan Terminal');
+    }
+    else if (lowerMessage.includes('kipas')) {
+        handleDeviceCommand(6, lowerMessage, 'Kipas');
+    }
+    else if (lowerMessage.includes('pompa') || lowerMessage.includes('siram')) {
+        handleDeviceCommand(7, lowerMessage, 'Pompa');
+    }
+    else if (lowerMessage.includes('valve') || lowerMessage.includes('solenoid')) {
+        handleDeviceCommand(8, lowerMessage, 'Solenoid Valve');
+    }
+    else {
+        // Kirim langsung sebagai command (untuk command khusus)
+        sendSerialCommand(message.toUpperCase());
     }
 }
 
+// Helper function untuk handle device command
+function handleDeviceCommand(deviceIndex, lowerMessage, deviceName) {
+    const action = lowerMessage.includes('nyala') || 
+                   lowerMessage.includes('hidup') || 
+                   lowerMessage.includes('buka') ? 'on' : 'off';
+    
+    if (sendDeviceCommand(deviceIndex, action)) {
+        const actionText = action === 'on' ? 'menyalakan' : 'mematikan';
+        addChatMessage('System', `${actionText} ${deviceName}...`);
+    }
+}
+
+// Voice recognition
 function startVoiceRecognition() {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-        alert("Browser tidak support suara."); return;
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        
+        recognition.lang = 'id-ID';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+        
+        recognition.start();
+        
+        recognition.onresult = function(event) {
+            const transcript = event.results[0][0].transcript;
+            document.getElementById('userInput').value = transcript;
+            sendMessage();
+        };
+        
+        recognition.onerror = function(event) {
+            console.error('Speech recognition error', event.error);
+            addChatMessage('System', '🎤 Error dalam pengenalan suara');
+        };
+        
+        recognition.onend = function() {
+            addChatMessage('System', '🎤 Siap mendengar perintah...');
+        };
+    } else {
+        addChatMessage('System', '🎤 Browser tidak mendukung pengenalan suara');
     }
-    const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new Rec();
-    recognition.lang = 'id-ID';
-    recognition.start();
+}
 
-    document.getElementById('btn-mic').innerText = "👂...";
+// Tambahkan pesan ke chat
+function addChatMessage(sender, message) {
+    const chatMessages = document.getElementById('chatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = sender === 'Anda' ? 'message user' : 'message system';
+    
+    // Warna berbeda untuk Arduino
+    if (sender === 'Arduino') {
+        messageDiv.style.color = '#0066cc';
+        messageDiv.style.fontStyle = 'italic';
+    }
+    // Warna untuk Sensor
+    else if (sender === 'Sensor') {
+        messageDiv.style.color = '#FF9800';
+        messageDiv.style.fontSize = '0.9em';
+    }
+    // Warna untuk System
+    else if (sender === 'System') {
+        messageDiv.style.color = '#666';
+        messageDiv.style.fontSize = '0.9em';
+    }
+    
+    messageDiv.innerHTML = `<strong>${sender}:</strong> ${message}`;
+    
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
 
-    recognition.onresult = (e) => {
-        const txt = e.results[0][0].transcript;
-        addLog('Anda', txt);
-        
-        // Kirim ke Python
-        if(isConnected) client.publish(TOPIC_PREFIX + 'voice_input', txt.toLowerCase());
-        
-        document.getElementById('btn-mic').innerText = "🎤";
+// Update UI koneksi status
+function updateConnectionStatus(connected) {
+    const statusItems = document.querySelectorAll('.status-text');
+    
+    if (connected) {
+        statusItems.forEach(item => {
+            if (item.textContent === 'Offline' || item.textContent === 'Loading...') {
+                item.textContent = 'Mati';
+                item.style.color = '#f44336';
+            }
+        });
+    } else {
+        statusItems.forEach(item => {
+            item.textContent = 'Offline';
+            item.style.color = '#ff9800';
+        });
+    }
+}
+
+// Toggle menu hamburger
+function toggleMenu() {
+    const menu = document.getElementById('hamburgerMenu');
+    menu.classList.toggle('active');
+}
+
+// Update waktu dan tanggal
+function updateDateTime() {
+    const now = new Date();
+    const timeElement = document.querySelector('.time');
+    const dateElement = document.querySelector('.date');
+    
+    const optionsDate = { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'numeric', 
+        day: 'numeric' 
     };
     
-    recognition.onend = () => {
-         document.getElementById('btn-mic').innerText = "🎤";
-    };
+    const timeString = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const dateString = now.toLocaleDateString('id-ID', optionsDate);
+    
+    if (timeElement) timeElement.textContent = timeString;
+    if (dateElement) dateElement.textContent = dateString;
 }
+
+// Inisialisasi saat halaman dimuat
+window.onload = function() {
+    // Update waktu
+    updateDateTime();
+    setInterval(updateDateTime, 60000);
+    
+    // Koneksi MQTT
+    connectToMQTT();
+    
+    // Event listener untuk Enter key
+    const userInput = document.getElementById('userInput');
+    if (userInput) {
+        userInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        
+        userInput.focus();
+        
+        // Placeholder saran
+        userInput.placeholder = 'Contoh: "nyalakan lampu utama", "matikan kipas", "status"';
+    }
+    
+    // Pesan selamat datang
+    setTimeout(() => {
+        addChatMessage('System', '🏠 Selamat datang di Smart Home System!');
+        addChatMessage('System', '💬 Gunakan perintah seperti: "nyalakan lampu utama", "matikan kipas", "buka pintu"');
+        addChatMessage('System', '🎤 Klik ikon mikrofon untuk perintah suara');
+        addChatMessage('System', '📋 Ketik "status" untuk melihat status semua perangkat');
+    }, 1500);
+};
+
+// Export functions untuk digunakan di HTML
+window.toggleMenu = toggleMenu;
+window.sendMessage = sendMessage;
+window.startVoiceRecognition = startVoiceRecognition;
