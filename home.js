@@ -113,7 +113,8 @@ function subscribeToTopics() {
     const topics = [
         MQTT_TOPIC_PREFIX + 'response',
         MQTT_TOPIC_PREFIX + 'status',
-        MQTT_TOPIC_PREFIX + 'sensor'
+        MQTT_TOPIC_PREFIX + 'sensor',
+        MQTT_TOPIC_PREFIX + 'voice_reply'
     ];
 
     topics.forEach(topic => {
@@ -143,6 +144,11 @@ function handleIncomingMessage(topic, message) {
         updateStatusFromMessage(message);
     } else if (topic.includes('sensor')) {
         processSensorData(message);
+    }
+    // --- TAMBAHAN BARU ---
+    else if (topic.includes('voice_reply')) {
+        addChatMessage('Bot', message); // Tampilkan teks bot
+        speak(message);                 // Bacakan teks bot
     }
 }
 
@@ -325,7 +331,16 @@ function sendMessage() {
     if (message === '') return;
     
     addChatMessage('Anda', message);
-    processCommand(message);
+    // LOGIKA BARU (KIRIM KE PYTHON):
+    if (isConnected) {
+        // Kirim ke topik 'voice_input' agar Python yang memproses
+        const topicInput = MQTT_TOPIC_PREFIX + 'voice_input';
+        mqttClient.publish(topicInput, message.toLowerCase());
+        console.log("Dikirim ke Python:", message);
+    } else {
+        addChatMessage('System', '❌ Koneksi MQTT Putus');
+    }
+    
     input.value = '';
 }
 
@@ -563,3 +578,15 @@ window.onload = function() {
 window.toggleMenu = toggleMenu;
 window.sendMessage = sendMessage;
 window.startVoiceRecognition = startVoiceRecognition;
+
+// --- REVISI 2: TAMBAHAN FITUR WEB BICARA ---
+function speak(text) {
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel(); // Stop suara sebelumnya
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'id-ID'; // Bahasa Indonesia
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        window.speechSynthesis.speak(utterance);
+    }
+}
