@@ -46,8 +46,11 @@ function connectToMQTT() {
         mqttClient.subscribe(TOPIC_PREFIX + 'response');
         mqttClient.subscribe(TOPIC_PREFIX + 'status');
         mqttClient.subscribe(TOPIC_PREFIX + 'sensor');
-        mqttClient.subscribe(TOPIC_PREFIX + 'voice_reply'); // Topik Suara dari Python
-    });
+        mqttClient.subscribe(TOPIC_PREFIX + 'voice_reply');
+        setTimeout(() => {
+            sendSerialCommand('STATUS');
+        }, 1500); // Tunggu 1.5 detik agar koneksi stabil dulu
+    });// Topik Suara dari Python
 
     mqttClient.on('message', function (topic, message) {
         handleIncomingMessage(topic, message.toString());
