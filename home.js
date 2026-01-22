@@ -563,3 +563,56 @@ window.onload = function() {
 window.toggleMenu = toggleMenu;
 window.sendMessage = sendMessage;
 window.startVoiceRecognition = startVoiceRecognition;
+
+// 1. Tambahkan Fungsi Bicara (Letakkan di paling bawah file home.js)
+function speak(text) {
+    // Cek support browser
+    if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'id-ID'; // Bahasa Indonesia
+        utterance.rate = 1;       // Kecepatan bicara (0.1 - 10)
+        utterance.pitch = 1;      // Nada bicara (0 - 2)
+        window.speechSynthesis.speak(utterance);
+    } else {
+        console.log("Browser tidak mendukung fitur suara.");
+    }
+}
+
+// 2. Update Fungsi onConnect (Agar subscribe ke topik jawaban suara)
+function onConnect() {
+    console.log("Connected to MQTT Broker!");
+    document.getElementById("status").innerText = "Status: Connected";
+    document.getElementById("status").style.color = "lime";
+    
+    // Subscribe ke topik yang sudah ada
+    client.subscribe("smart_home/response");
+    client.subscribe("smart_home/sensor");
+    
+    // --- TAMBAHAN BARU: Subscribe ke topik balasan suara ---
+    client.subscribe("smart_home/voice_reply"); 
+}
+
+// 3. Update Fungsi onMessageArrived (Agar bicara saat terima pesan)
+function onMessageArrived(message) {
+    console.log("Pesan masuk: " + message.destinationName + " -> " + message.payloadString);
+    const topic = message.destinationName;
+    const payload = message.payloadString;
+
+    // Logika Sensor & Status yang sudah ada...
+    if (topic === "smart_home/sensor") {
+        processSensorData(payload);
+    } 
+    else if (topic === "smart_home/response") {
+        // Tampilkan di chat log biasa
+        addChatMessage('System', payload);
+    }
+
+    // --- TAMBAHAN BARU: Jika pesan datang dari topik voice_reply ---
+    else if (topic === "smart_home/voice_reply") {
+        // 1. Tampilkan teks di layar (Chat Bot)
+        addChatMessage('Bot', payload);
+        
+        // 2. SUARA: Perintahkan browser bicara
+        speak(payload); 
+    }
+}
