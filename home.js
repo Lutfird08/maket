@@ -1,6 +1,6 @@
 // Konfigurasi MQTT - Menggunakan EMQX broker
 const MQTT_BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
-const MQTT_TOPIC_PREFIX = 'smart_home/';
+const MQTT_TOPIC_PREFIX = 'lutfi_140910/smart_home/';
 
 // Variabel global
 let mqttClient = null;
