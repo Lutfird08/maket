@@ -3,216 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-    <title>Smart Home Light Control</title>
+    <title>Kontrol Lampu</title>
+    <link rel="stylesheet" href="home.css">
+    
     <style>
-        body {
-            font-family: Poppins, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f0f0f0;
-        }
-        .header {
-            background-color: white;
-            padding: 10px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 1000;
-        }
-        .logo {
-            display: flex;
-            align-items: center;
-        }
-        .logo img {
-            width: 40px;
-            margin-right: 10px;
-        }
-        .mqtt-status {
-            font-size: 12px;
-            padding: 4px 8px;
-            border-radius: 4px;
-            background-color: #ff9800;
-            color: white;
-            font-weight: bold;
-        }
-        .mqtt-status.connected {
-            background-color: #4CAF50;
-        }
-        .mqtt-status.disconnected {
-            background-color: #f44336;
-        }
-        .mqtt-status.connecting {
-            background-color: #ff9800;
-        }
-        .container {
-            padding: 90px 20px 20px;
+        /* Style Khusus Halaman Lampu */
+        .grid-container {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
+            grid-template-columns: repeat(2, 1fr); /* 2 Kolom */
+            gap: 15px;
+            padding: 20px;
             max-width: 500px;
             margin: 0 auto;
         }
-        .light-card {
-            background-color: #ffc107;
-            border-radius: 10px;
+        .card {
+            background: white;
             padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
             display: flex;
             flex-direction: column;
             align-items: center;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            cursor: pointer;
-            position: relative;
-        }
-        .light-card.on {
-            background-color: #4CAF50;
-        }
-        .light-card.off {
-            background-color: #ffc107;
-        }
-        .light-card.sending {
-            background-color: #ff9800;
-            animation: pulse 1.5s infinite;
-        }
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.7; }
-            100% { opacity: 1; }
-        }
-        .light-card p {
-            color: #333;
-            font-weight: 500;
-            margin: 0 0 15px 0;
-        }
-        .light-icon {
-            width: 80px;
-            height: 80px;
-            display: flex;
             justify-content: center;
-            align-items: center;
-            margin-bottom: 15px;
         }
-        .light-icon img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
+        .card:active { transform: scale(0.95); }
+        .card img { width: 50px; margin-bottom: 10px; }
+        .card h3 { 
+            font-size: 14px; margin: 0; color: #555; font-family: 'Poppins', sans-serif;
         }
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 60px;
-            height: 34px;
+        .status { 
+            font-weight: bold; color: #f44336; margin-top: 5px; display: block; font-size: 14px;
         }
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
+        
+        /* Card Mode Otomatis (Lebar Penuh) */
+        .card-auto {
+            grid-column: span 2;
+            background: #e3f2fd;
+            border: 1px solid #bbdefb;
         }
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #ccc;
-            transition: .4s;
-            border-radius: 34px;
-        }
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 26px;
-            width: 26px;
-            left: 4px;
-            bottom: 4px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-        input:checked + .slider {
-            background-color: #2196F3;
-        }
-        input:checked + .slider:before {
-            transform: translateX(26px);
-        }
-        .status-text {
-            font-size: 12px;
-            margin-top: 8px;
-            font-weight: bold;
-            color: #333;
-            transition: all 0.3s ease;
-        }
-        .status-text.sending {
-            animation: blink 1s infinite;
-        }
-        @keyframes blink {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
-        .back-button {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background-color: #ffc107;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            font-size: 24px;
-            cursor: pointer;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-decoration: none;
-            z-index: 100;
-        }
-        .back-button:hover {
-            background-color: #e8b007;
-            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
-            transform: translateY(-2px);
-        }
-        .notification {
-            position: fixed;
-            top: 70px;
-            right: 20px;
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px 15px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            display: none;
-            z-index: 1000;
-            font-size: 14px;
-        }
-        .notification.error {
-            background-color: #f44336;
-        }
-        .control-button {
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-top: 10px;
-            font-weight: 500;
-        }
-        .control-button.off-btn {
-            background-color: #f44336;
+
+        /* Tombol Semua Lampu */
+        .card-all {
+            background-color: #ffebee;
+            border: 1px solid #ffcdd2;
         }
     </style>
 </head>
@@ -220,395 +58,98 @@
     <div class="header">
         <div class="logo">
             <img src="https://www.unpad.ac.id/wp-content/uploads/2018/04/logo-unpad1.png" alt="Logo">
-            <span>Smart Home - Kontrol Lampu</span>
+            <span>Smart Home</span>
         </div>
-        <div id="mqttStatus" class="mqtt-status">MQTT: Connecting...</div>
+        <div class="menu-icon" onclick="toggleMenu()">☰</div>
     </div>
-    
-    <div id="notification" class="notification"></div>
-    
-    <div class="container">
-        <div class="light-card off" id="lampuUtamaCard">
-            <div class="light-icon"><img src="Asset/idea.png" alt="lampu"></div>
-            <p>Lampu Utama</p>
-            <label class="switch">
-                <input type="checkbox" id="lampuUtama">
-                <span class="slider"></span>
-            </label>
-            <div id="lampuUtamaStatus" class="status-text">Status: MATI</div>
-        </div>
-        <div class="light-card off" id="lampuKamarCard">
-            <div class="light-icon"><img src="Asset/idea.png" alt="lampu"></div>
-            <p>Lampu Kamar</p>
-            <label class="switch">
-                <input type="checkbox" id="lampuKamar">
-                <span class="slider"></span>
-            </label>
-            <div id="lampuKamarStatus" class="status-text">Status: MATI</div>
-        </div>
-        <div class="light-card off" id="lampuTamuCard">
-            <div class="light-icon"><img src="Asset/idea.png" alt="lampu"></div>
-            <p>Lampu Tamu</p>
-            <label class="switch">
-                <input type="checkbox" id="lampuTamu">
-                <span class="slider"></span>
-            </label>
-            <div id="lampuTamuStatus" class="status-text">Status: MATI</div>
-        </div>
-        <div class="light-card off" id="terminalCard">
-            <div class="light-icon"><img src="Asset/automation.png" alt="terminal"></div>
-            <p>Terminal Listrik</p>
-            <label class="switch">
-                <input type="checkbox" id="terminal">
-                <span class="slider"></span>
-            </label>
-            <div id="terminalStatus" class="status-text">Status: MATI</div>
-        </div>
-    </div>
-    
-    <div class="container" style="margin-top: 20px;">
-        <div class="light-card off" id="controlAllCard" onclick="controlAllDevices(true)">
-            <div class="light-icon"><img src="Asset/idea.png" alt="power"></div>
-            <p>NYALA SEMUA</p>
-            <button class="control-button">
-                🔆 NYALA
-            </button>
-        </div>
-        <div class="light-card off" id="controlAllOffCard" onclick="controlAllDevices(false)">
-            <div class="light-icon"><img src="Asset/idea.png" alt="power-off"></div>
-            <p>MATI SEMUA</p>
-            <button class="control-button off-btn">
-                🔌 MATI
-            </button>
-        </div>
-    </div>
-    
-    <a href="home.html" class="back-button">&#8592;</a>
 
+    <div class="hamburger-menu" id="hamburgerMenu">
+        <span class="close-menu" onclick="toggleMenu()">×</span>
+        <ul class="menu-items">
+            <li><a href="home.html">🏠 Dashboard (Kembali)</a></li>
+            <li><a href="lampu.html" style="font-weight:bold;">💡 Lampu</a></li>
+            <li><a href="terminal.html">Terminal Listrik</a></li>
+            <li><a href="tirai.html">Tirai</a></li>
+            <li><a href="kipas.html">Kipas</a></li>
+            <li><a href="water.html">Saluran Air</a></li>
+            <li><a href="ac.html">AC</a></li>
+            <li><a href="plant.html">Penyiram Tanaman</a></li>
+            <li><a href="door.html">Door Lock</a></li>
+            <li><a href="status.html">📊 Status Perangkat</a></li>
+        </ul>
+    </div>
+
+    <h2 style="text-align:center; margin-top:20px; font-family: 'Montserrat', sans-serif;">Kontrol Lampu</h2>
+
+    <div class="grid-container">
+        <div class="card" onclick="toggleDevice('lampu utama', 'lamp1')">
+            <img src="Asset/idea.png" alt="Lampu Utama">
+            <h3>Lampu Utama</h3>
+            <span id="lamp1" class="status">Mati</span>
+        </div>
+
+        <div class="card" onclick="toggleDevice('lampu kamar', 'lamp2')">
+            <img src="Asset/idea.png" alt="Lampu Kamar">
+            <h3>Lampu Kamar</h3>
+            <span id="lamp2" class="status">Mati</span>
+        </div>
+
+        <div class="card" onclick="toggleDevice('lampu tamu', 'lamp3')">
+            <img src="Asset/idea.png" alt="Lampu Tamu">
+            <h3>Lampu Tamu</h3>
+            <span id="lamp3" class="status">Mati</span>
+        </div>
+
+        <div class="card card-all" onclick="toggleAllLights()">
+            <img src="Asset/idea.png" style="filter: hue-rotate(150deg);" alt="All">
+            <h3>Semua Lampu</h3>
+            <span id="all-status" class="status" style="color:#555;">Klik utk Toggle</span>
+        </div>
+
+        <div class="card card-auto" onclick="toggleDevice('otomatis lampu', 'auto-lamp')">
+            <img src="Asset/ai.png" onerror="this.src='Asset/idea.png'" alt="Auto" width="40">
+            <h3>Mode Otomatis (Sensor Cahaya)</h3>
+            <span id="auto-lamp" class="status">Mati</span>
+        </div>
+    </div>
+
+    <script src="home.js"></script>
+    
     <script>
-        const MQTT_BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
-        const MQTT_TOPIC_PREFIX = 'lutfi_140910/smart_home/';
-        
-        let mqttClient = null;
-        let isConnected = false;
-        
-        // Mapping device ke index Arduino dengan ON/OFF commands
-        const devices = [
-            { 
-                id: 'lampuUtama', 
-                name: 'Lampu Utama', 
-                index: 0,
-                onCommand: 'ON 0',
-                offCommand: 'OFF 0'
-            },
-            { 
-                id: 'lampuKamar', 
-                name: 'Lampu Kamar', 
-                index: 1,
-                onCommand: 'ON 1',
-                offCommand: 'OFF 1'
-            },
-            { 
-                id: 'lampuTamu', 
-                name: 'Lampu Tamu', 
-                index: 2,
-                onCommand: 'ON 2',
-                offCommand: 'OFF 2'
-            },
-            { 
-                id: 'terminal', 
-                name: 'Colokan Terminal', 
-                index: 3,
-                onCommand: 'ON 3',
-                offCommand: 'OFF 3'
-            }
-        ];
-        
-        // Status perangkat
-        let deviceStatus = {};
-        let pendingCommands = {}; // Untuk melacak perintah yang sedang dikirim
-        
-        // Inisialisasi status
-        devices.forEach(device => {
-            deviceStatus[device.id] = false;
-            pendingCommands[device.id] = false;
-        });
-        
-        // Fungsi koneksi MQTT
-        function connectToMQTT() {
-            console.log('Menghubungkan ke MQTT...');
-            updateMqttStatus('Connecting', 'connecting');
+        // Fungsi untuk toggle satu lampu
+        function toggleDevice(name, id) {
+            const el = document.getElementById(id);
+            const currentStatus = el.innerText;
             
-            const options = {
-                clientId: 'smart_home_lampu_' + Math.random().toString(16).substr(2, 8),
-                clean: true,
-                reconnectPeriod: 1000,
-                connectTimeout: 30000
-            };
-        
-            mqttClient = mqtt.connect(MQTT_BROKER_URL, options);
-        
-            mqttClient.on('connect', () => {
-                console.log('✅ Terhubung ke MQTT');
-                isConnected = true;
-                updateMqttStatus('Connected', 'connected');
-                
-                // Subscribe to topics
-                subscribeToTopics();
-                
-                // Request initial status
-                setTimeout(() => {
-                    sendCommand('STATUS');
-                    showNotification('✅ Terhubung ke sistem Smart Home', 'success');
-                }, 1000);
-            });
-        
-            mqttClient.on('message', (topic, message) => {
-                handleMessage(topic, message.toString());
-            });
-        
-            mqttClient.on('error', (error) => {
-                console.error('MQTT Error:', error);
-                updateMqttStatus('Error', 'disconnected');
-                isConnected = false;
-                showNotification('❌ Error koneksi MQTT', 'error');
-            });
+            let command = "";
             
-            mqttClient.on('close', () => {
-                console.log('MQTT disconnected');
-                updateMqttStatus('Disconnected', 'disconnected');
-                isConnected = false;
-            });
-        }
-        
-        // Subscribe ke topik
-        function subscribeToTopics() {
-            const topics = [
-                MQTT_TOPIC_PREFIX + 'response',
-                MQTT_TOPIC_PREFIX + 'status',
-                MQTT_TOPIC_PREFIX + 'sensor'
-            ];
-        
-            topics.forEach(topic => {
-                mqttClient.subscribe(topic, { qos: 0 }, (err) => {
-                    if (!err) {
-                        console.log('Subscribed to:', topic);
-                    }
-                });
-            });
-        }
-        
-        // Handle pesan masuk
-        function handleMessage(topic, message) {
-            console.log('Received:', topic, '=>', message);
-            
-            // Skip system messages
-            if (message.includes("SISTEM KONTROL RUMAH") || 
-                message.includes("PERINTAH SERIAL:") ||
-                message.includes("Catatan:") ||
-                message.startsWith("ARDUINO_MEGA:") ||
-                message.startsWith("ESP32:")) {
-                return;
-            }
-            
-            // Parse device status
-            if (message.includes(':')) {
-                const parts = message.split(':');
-                if (parts.length >= 2) {
-                    const deviceName = parts[0].trim();
-                    const status = parts[1].trim().toUpperCase();
-                    const isOn = status.includes('ON') || status.includes('AKTIF');
-                    
-                    // Find device by name
-                    const device = devices.find(d => 
-                        deviceName.includes(d.name) || 
-                        deviceName === d.name
-                    );
-                    
-                    if (device) {
-                        // Update UI dengan status final
-                        updateDeviceUI(device.id, isOn, false);
-                        
-                        // Reset pending command
-                        pendingCommands[device.id] = false;
-                        
-                        // Show notification
-                        const action = isOn ? 'dinyalakan' : 'dimatikan';
-                        showNotification(`✅ ${device.name} ${action}`, 'success');
-                    }
-                }
-            }
-            
-            // Handle sensor data
-            if (topic.includes('sensor')) {
-                console.log('Sensor data:', message);
-            }
-        }
-        
-        // Update status MQTT
-        function updateMqttStatus(text, statusClass) {
-            const element = document.getElementById('mqttStatus');
-            if (element) {
-                element.textContent = `MQTT: ${text}`;
-                element.className = 'mqtt-status ' + statusClass;
-            }
-        }
-        
-        // Update UI perangkat
-        function updateDeviceUI(deviceId, isOn, isSending = false) {
-            deviceStatus[deviceId] = isOn;
-            
-            // Update checkbox
-            const checkbox = document.getElementById(deviceId);
-            if (checkbox) {
-                checkbox.checked = isOn;
-            }
-            
-            // Update status text
-            const statusElement = document.getElementById(deviceId + 'Status');
-            if (statusElement) {
-                if (isSending) {
-                    statusElement.textContent = 'Status: Mengirim...';
-                    statusElement.className = 'status-text sending';
-                } else {
-                    statusElement.textContent = `Status: ${isOn ? 'NYALA' : 'MATI'}`;
-                    statusElement.className = 'status-text';
-                }
-            }
-            
-            // Update card - HANYA background yang berubah
-            const cardElement = document.getElementById(deviceId + 'Card');
-            if (cardElement) {
-                if (isSending) {
-                    cardElement.className = 'light-card sending';
-                } else {
-                    cardElement.className = `light-card ${isOn ? 'on' : 'off'}`;
-                }
-            }
-            
-            console.log(`Updated ${deviceId}: ${isOn ? 'ON' : 'OFF'}, Sending: ${isSending}`);
-        }
-        
-        // Kirim perintah ke Arduino
-        function sendCommand(command) {
-            if (!isConnected || !mqttClient) {
-                showNotification('❌ Tidak terhubung ke server MQTT', 'error');
-                return false;
-            }
-            
-            const topic = MQTT_TOPIC_PREFIX + 'control';
-            console.log('Sending:', command);
-            
-            mqttClient.publish(topic, command, { qos: 0 }, (err) => {
-                if (err) {
-                    console.error('Failed to send:', err);
-                    showNotification('❌ Gagal mengirim perintah', 'error');
-                    return false;
-                }
-            });
-            
-            return true;
-        }
-        
-        // Toggle perangkat
-        function toggleDevice(deviceId) {
-            const device = devices.find(d => d.id === deviceId);
-            if (!device) return;
-            
-            const newState = !deviceStatus[deviceId];
-            const command = newState ? device.onCommand : device.offCommand;
-            
-            // Cek apakah ada perintah pending untuk device ini
-            if (pendingCommands[deviceId]) {
-                showNotification('⏳ Perintah sebelumnya masih diproses...', 'info');
-                return;
-            }
-            
-            // Set pending command
-            pendingCommands[deviceId] = true;
-            
-            // Update UI sementara dengan status "sending"
-            updateDeviceUI(deviceId, newState, true);
-            
-            // Kirim perintah
-            if (sendCommand(command)) {
-                showNotification(`📤 Mengirim perintah: ${device.name}`, 'info');
+            // Logika Toggle Sederhana
+            if (currentStatus === 'Nyala' || currentStatus === 'ON') {
+                command = "matikan " + name;
             } else {
-                // Jika gagal kirim, reset pending dan kembalikan ke status sebelumnya
-                pendingCommands[deviceId] = false;
-                updateDeviceUI(deviceId, !newState, false);
+                command = "nyalakan " + name;
             }
-        }
-        
-        // Kontrol semua perangkat
-        function controlAllDevices(turnOn) {
-            const action = turnOn ? 'menyalakan' : 'mematikan';
-            showNotification(`⚡ ${action} semua perangkat...`, 'info');
             
-            devices.forEach((device, index) => {
-                setTimeout(() => {
-                    const command = turnOn ? device.onCommand : device.offCommand;
-                    sendCommand(command);
-                    
-                    // Update UI sementara
-                    updateDeviceUI(device.id, turnOn, true);
-                    
-                    // Set pending
-                    pendingCommands[device.id] = true;
-                }, index * 300); // Delay antar perintah
-            });
+            // Khusus Mode Otomatis bahasanya beda dikit di Python
+            if (name === 'otomatis lampu') {
+                 if (currentStatus === 'Nyala') command = "matikan otomatis lampu";
+                 else command = "nyalakan otomatis lampu";
+            }
+
+            // Kirim ke Python lewat fungsi global di home.js
+            sendToPython(command);
         }
-        
-        // Tampilkan notifikasi
-        function showNotification(message, type = 'info') {
-            const notification = document.getElementById('notification');
-            if (notification) {
-                notification.textContent = message;
-                notification.className = 'notification';
-                
-                if (type === 'error') {
-                    notification.classList.add('error');
-                }
-                
-                notification.style.display = 'block';
-                
-                // Auto hide setelah 3 detik
-                setTimeout(() => {
-                    notification.style.display = 'none';
-                }, 3000);
+
+        // Fungsi Toggle Semua Lampu
+        function toggleAllLights() {
+            // Cek status lampu 1 sebagai patokan
+            const l1 = document.getElementById('lamp1').innerText;
+            if (l1 === 'Nyala' || l1 === 'ON') {
+                sendToPython('matikan semua lampu');
+            } else {
+                sendToPython('nyalakan semua lampu');
             }
         }
-        
-        // Setup event listeners
-        function setupEventListeners() {
-            devices.forEach(device => {
-                const checkbox = document.getElementById(device.id);
-                if (checkbox) {
-                    checkbox.addEventListener('change', () => {
-                        toggleDevice(device.id);
-                    });
-                }
-                
-                const card = document.getElementById(device.id + 'Card');
-                if (card) {
-                    card.addEventListener('click', (e) => {
-                        if (e.target.type !== 'checkbox' && 
-                            e.target.className !== 'slider' && 
-                            e.target.tagName !== 'BUTTON') {
-                            const checkbox = document.getElementById(device.id);
-                            checkbox.checked = !checkbox.checked;
-                            checkbox.dispatchEvent(new Event('change'));
-                        }
-                    });
-                }
-            });
-        }
-        
-        // Inisialisasi saat halaman dimuat
-        window.onload = function() {
-            setupEventListeners();
-            connectToMQTT();
-        };
     </script>
 </body>
 </html>
