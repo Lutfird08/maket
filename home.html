@@ -5,44 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-    
-    <title>Smart Home Dashboard</title>
+    <title>Smart Home</title>
     <link rel="stylesheet" href="home.css">
-
-    <style>
-        .grid-container {
-            display: flex;
-            justify-content: center;
-            padding: 10px;
-            margin-bottom: 10px;
-        }
-        /* Kartu Status Sederhana (Tanpa Kontrol) */
-        .card-status-only {
-            background: white;
-            padding: 15px;
-            border-radius: 15px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            text-align: center;
-            width: 90%;
-            max-width: 350px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between; /* Icon kiri, Teks kanan */
-        }
-        .card-left {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        .card-info h3 {
-            margin: 0;
-            font-size: 16px;
-            color: #333;
-        }
-    </style>
 </head>
 <body>
     <div class="header">
@@ -61,7 +27,10 @@
             <li><a href="tirai.html">Tirai</a></li>
             <li><a href="kipas.html">Kipas</a></li>
             <li><a href="water.html">Saluran Air</a></li>
-            <li><a href="ac.html">AC</a></li> <li><a href="plant.html">Penyiram Tanaman</a></li>
+            
+            <li><a href="ac.html">AC</a></li>
+            
+            <li><a href="plant.html">Penyiram Tanaman</a></li>
             <li><a href="door.html">Door Lock</a></li>
         </ul>
     </div>
@@ -69,31 +38,15 @@
     <div class="status-card">
         <div class="time">--:--</div>
         <div class="date">Loading...</div>
-        
         <div class="status-icons">
             <div class="status-item">
                 <span class="status-icon"><img src="Asset/idea.png" alt="lamp"></span>
                 <span class="status-text" id="lamp">Unknown</span>
             </div>
+            
             <div class="status-item">
-                <span class="status-icon"><img src="Asset/door_lock.png" alt="door"></span>
+                <span class="status-icon"><img src="Asset/door_lock.png" alt="door-lock-status"></span>
                 <span class="status-text" id="door">Unknown</span>
-            </div>
-        </div>
-    </div>
-
-    <div class="grid-container">
-        <div class="card-status-only" id="card-ac">
-            <div class="card-left">
-                <div class="card-icon">
-                    <img src="Asset/ac.png" alt="AC Icon" width="40">
-                </div>
-                <div class="card-info">
-                    <h3>AC Ruangan</h3>
-                </div>
-            </div>
-            <div class="card-right">
-                <span id="status-ac" class="status-device" style="font-weight:bold; color:#f44336;">Mati</span>
             </div>
         </div>
     </div>
@@ -109,131 +62,5 @@
     </div>
 
     <script src="home.js"></script>
-    
-    <script>
-        // Opsional: Klik kartu AC untuk buka menu detail
-        document.getElementById('card-ac').addEventListener('click', function() {
-            window.location.href = 'ac.html';
-        });
-    </script>
-</body>
-</html><!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-    
-    <title>Smart Home Dashboard</title>
-    <link rel="stylesheet" href="home.css">
-
-    <style>
-        .grid-container {
-            display: flex;
-            justify-content: center;
-            padding: 10px;
-            margin-bottom: 10px;
-        }
-        /* Kartu Status Sederhana (Tanpa Kontrol) */
-        .card-status-only {
-            background: white;
-            padding: 15px;
-            border-radius: 15px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            text-align: center;
-            width: 90%;
-            max-width: 350px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between; /* Icon kiri, Teks kanan */
-        }
-        .card-left {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        .card-info h3 {
-            margin: 0;
-            font-size: 16px;
-            color: #333;
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <div class="logo">
-            <img src="https://www.unpad.ac.id/wp-content/uploads/2018/04/logo-unpad1.png" alt="Logo">
-            <span>Smart Home</span>
-        </div>
-        <div class="menu-icon" onclick="toggleMenu()">☰</div>
-    </div>
-
-    <div class="hamburger-menu" id="hamburgerMenu">
-        <span class="close-menu" onclick="toggleMenu()">×</span>
-        <ul class="menu-items">
-            <li><a href="lampu.html">Lampu</a></li>
-            <li><a href="terminal.html">Terminal Listrik</a></li>
-            <li><a href="tirai.html">Tirai</a></li>
-            <li><a href="kipas.html">Kipas</a></li>
-            <li><a href="water.html">Saluran Air</a></li>
-            <li><a href="ac.html">AC</a></li> <li><a href="plant.html">Penyiram Tanaman</a></li>
-            <li><a href="door.html">Door Lock</a></li>
-        </ul>
-    </div>
-
-    <div class="status-card">
-        <div class="time">--:--</div>
-        <div class="date">Loading...</div>
-        
-        <div class="status-icons">
-            <div class="status-item">
-                <span class="status-icon"><img src="Asset/idea.png" alt="lamp"></span>
-                <span class="status-text" id="lamp">Unknown</span>
-            </div>
-            <div class="status-item">
-                <span class="status-icon"><img src="Asset/door_lock.png" alt="door"></span>
-                <span class="status-text" id="door">Unknown</span>
-            </div>
-        </div>
-    </div>
-
-    <div class="grid-container">
-        <div class="card-status-only" id="card-ac">
-            <div class="card-left">
-                <div class="card-icon">
-                    <img src="Asset/ac.png" alt="AC Icon" width="40">
-                </div>
-                <div class="card-info">
-                    <h3>AC Ruangan</h3>
-                </div>
-            </div>
-            <div class="card-right">
-                <span id="status-ac" class="status-device" style="font-weight:bold; color:#f44336;">Mati</span>
-            </div>
-        </div>
-    </div>
-
-    <div class="chat-container">
-        <div class="chat-messages" id="chatMessages">
-            </div>
-        <div class="input-area">
-            <input type="text" id="userInput" placeholder="Ketik perintah atau gunakan mic...">
-            <button onclick="sendMessage()"><img src="Asset/send.png" alt="Send"></button>
-            <button onclick="startVoiceRecognition()"><img src="Asset/microphone.png" alt="Mic"></button>
-        </div>
-    </div>
-
-    <script src="home.js"></script>
-    
-    <script>
-        // Opsional: Klik kartu AC untuk buka menu detail
-        document.getElementById('card-ac').addEventListener('click', function() {
-            window.location.href = 'ac.html';
-        });
-    </script>
 </body>
 </html>
