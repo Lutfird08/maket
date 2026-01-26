@@ -62,7 +62,7 @@
     <div class="hamburger-menu" id="hamburgerMenu">
         <span class="close-menu" onclick="toggleMenu()">×</span>
         <ul class="menu-items">
-            <li><a href="home.html">🏠 Home Dashboard</a></li> <li><a href="lampu.html">Lampu</a></li>
+            <li><a href="home.html">🏠 Dashboard</a></li> <li><a href="lampu.html">Lampu</a></li>
             <li><a href="terminal.html">Terminal Listrik</a></li>
             <li><a href="tirai.html">Tirai</a></li>
             <li><a href="kipas.html">Kipas</a></li>
@@ -102,7 +102,8 @@
         </div>
 
         <div class="device-card">
-            <img src="Asset/fan.png" alt="Icon"> <h4>Kipas Angin</h4>
+            <img src="Asset/fan.png" alt="Icon">
+            <h4>Kipas Angin</h4>
             <span id="fan" class="status-value">Offline</span>
         </div>
 
@@ -113,23 +114,25 @@
         </div>
 
         <div class="device-card">
-            <img src="Asset/curtains.png" alt="Icon"> <h4>Tirai Jendela</h4>
+            <img src="Asset/curtains.png" alt="Icon"> 
+            <h4>Tirai Jendela</h4>
             <span id="curtain" class="status-value">Offline</span>
         </div>
 
         <div class="device-card">
-            <img src="Asset/socket.png" alt="Icon"> <h4>Terminal Listrik</h4>
+            <img src="Asset/socket.png" alt="Icon">
+            <h4>Terminal Listrik</h4>
             <span id="socket" class="status-value">Offline</span>
         </div>
 
         <div class="device-card">
-            <img src="Asset/water-pump.png" alt="Icon">
+            <img src="Asset/water-pump.png" onerror="this.src='Asset/plant.png'" alt="Icon">
             <h4>Pompa Air</h4>
             <span id="pump" class="status-value">Offline</span>
         </div>
 
         <div class="device-card">
-            <img src="Asset/valve.png" alt="Icon">
+            <img src="Asset/valve.png" onerror="this.src='Asset/drop.png'" alt="Icon">
             <h4>Kran Otomatis</h4>
             <span id="valve" class="status-value">Offline</span>
         </div>
