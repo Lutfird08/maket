@@ -3,571 +3,183 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-    <title>Smart Home Fan Control</title>
+    <title>Kontrol Kipas</title>
+    <link rel="stylesheet" href="home.css">
+    
     <style>
-        body {
-            font-family: Poppins, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f0f0f0;
-        }
-        .header {
-            background-color: white;
-            padding: 10px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 1000;
-        }
-        .logo {
-            display: flex;
-            align-items: center;
-        }
-        .logo img {
-            width: 40px;
-            margin-right: 10px;
-        }
-        .mqtt-status {
-            font-size: 12px;
-            padding: 4px 8px;
-            border-radius: 4px;
-            background-color: #ff9800;
-            color: white;
-            font-weight: bold;
-        }
-        .mqtt-status.connected {
-            background-color: #4CAF50;
-        }
-        .mqtt-status.disconnected {
-            background-color: #f44336;
-        }
-        .mqtt-status.connecting {
-            background-color: #ff9800;
-        }
-        .container {
-            padding: 80px 20px 20px;
+        /* Layout Grid */
+        .grid-container {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 20px;
-            max-width: 600px;
+            padding: 20px;
+            max-width: 500px;
             margin: 0 auto;
         }
+        
+        /* Card Style */
         .fan-card {
-            background-color: #ffc107;
-            border-radius: 10px;
+            background-color: white;
+            border-radius: 15px;
             padding: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
         }
-        .fan-card.on {
-            background-color: #4CAF50;
+
+        .fan-icon img { width: 60px; margin-bottom: 10px; }
+        
+        /* Animasi Kipas Berputar saat Nyala */
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .spin-animation { animation: spin 2s linear infinite; }
+
+        .fan-card h3 { margin: 0; font-size: 16px; color: #555; }
+        
+        /* Status Text */
+        .status { 
+            font-weight: bold; color: #f44336; margin-top: 5px; font-size: 18px; 
         }
-        .fan-card.off {
-            background-color: #ffc107;
-        }
-        .fan-card.sending {
-            background-color: #ff9800;
-            animation: pulse 1.5s infinite;
-        }
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.7; }
-            100% { opacity: 1; }
-        }
-        .fan-card p {
-            color: #333;
-            font-weight: 500;
-            margin: 0 0 15px 0;
-        }
-        .fan-icon {
-            width: 80px;
-            height: 80px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-        .fan-icon img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-        }
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 60px;
-            height: 34px;
-        }
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #ccc;
-            transition: .4s;
-            border-radius: 34px;
-        }
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 26px;
-            width: 26px;
-            left: 4px;
-            bottom: 4px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-        input:checked + .slider {
-            background-color: #2196F3;
-        }
-        input:checked + .slider:before {
-            transform: translateX(26px);
-        }
-        .status-text {
-            font-size: 12px;
-            margin-top: 8px;
-            font-weight: bold;
-            color: #333;
-            transition: all 0.3s ease;
-        }
-        .status-text.sending {
-            animation: blink 1s infinite;
-        }
-        @keyframes blink {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
-        .speed-control {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background-color: #ccc;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            border: none;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            font-size: 20px;
-            font-weight: bold;
-            color: white;
-        }
-        .speed-control:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        }
-        .speed-control:active {
-            transform: scale(0.95);
-        }
-        .speed-1 {
-            background-color: #66bb6a;
-        }
-        .speed-2 {
-            background-color: #42a5f5;
-        }
-        .speed-3 {
-            background-color: #ef5350;
-        }
-        .back-button {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background-color: #ffc107;
+
+        /* Tombol Power */
+        .btn-power {
+            background-color: #f44336; 
             color: white;
             border: none;
+            width: 60px; height: 60px;
             border-radius: 50%;
-            width: 60px;
-            height: 60px;
             font-size: 24px;
             cursor: pointer;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            transition: all 0.3s ease;
+            margin-top: 15px;
+            box-shadow: 0 4px 10px rgba(244, 67, 54, 0.3);
+            display: flex; align-items: center; justify-content: center;
+            transition: transform 0.2s;
+        }
+        .btn-power:active { transform: scale(0.95); }
+
+        /* Kontrol Kecepatan */
+        .speed-controls {
             display: flex;
-            align-items: center;
-            justify-content: center;
-            text-decoration: none;
-            z-index: 100;
+            gap: 15px;
+            margin-top: 20px;
         }
-        .back-button:hover {
-            background-color: #e8b007;
-            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
-            transform: translateY(-2px);
+        .btn-speed {
+            width: 50px; height: 50px;
+            border-radius: 12px;
+            border: none;
+            background: #e3f2fd;
+            color: #1565c0;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: background 0.2s;
         }
-        .back-button:active {
-            transform: translateY(0);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-        .notification {
-            position: fixed;
-            top: 70px;
-            right: 20px;
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px 15px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            display: none;
-            z-index: 1000;
-            font-size: 14px;
-        }
-        .notification.error {
-            background-color: #f44336;
-        }
-        .speed-label {
-            font-size: 11px;
-            margin-top: 5px;
-            color: #333;
-        }
+        .btn-speed:active { background: #bbdefb; transform: scale(0.95); }
+
     </style>
 </head>
 <body>
     <div class="header">
         <div class="logo">
             <img src="https://www.unpad.ac.id/wp-content/uploads/2018/04/logo-unpad1.png" alt="Logo">
-            <span>Smart Home - Kontrol Kipas</span>
+            <span>Smart Home</span>
         </div>
-        <div id="mqttStatus" class="mqtt-status">MQTT: Connecting...</div>
+        <div class="menu-icon" onclick="toggleMenu()">☰</div>
     </div>
-    
-    <div id="notification" class="notification"></div>
-    
-    <div class="container">
-        <div class="fan-card off" id="fanCard">
-            <div class="fan-icon"><img src="Asset/fan.png" alt="kipas"></div>
-            <p>Kipas Angin</p>
-            <label class="switch">
-                <input type="checkbox" id="fan">
-                <span class="slider"></span>
-            </label>
-            <div id="fanStatus" class="status-text">Status: MATI</div>
+
+    <div class="hamburger-menu" id="hamburgerMenu">
+        <span class="close-menu" onclick="toggleMenu()">×</span>
+        <ul class="menu-items">
+            <li><a href="home.html">🏠 Dashboard (Kembali)</a></li>
+            <li><a href="lampu.html">Lampu</a></li>
+            <li><a href="terminal.html">Terminal Listrik</a></li>
+            <li><a href="tirai.html">Tirai</a></li>
+            <li><a href="kipas.html" style="font-weight:bold;">💨 Kipas</a></li>
+            <li><a href="water.html">Saluran Air</a></li>
+            <li><a href="ac.html">AC</a></li>
+            <li><a href="plant.html">Penyiram Tanaman</a></li>
+            <li><a href="door.html">Door Lock</a></li>
+            <li><a href="status.html">📊 Status Perangkat</a></li>
+        </ul>
+    </div>
+
+    <h2 style="text-align:center; margin-top:20px; font-family: 'Montserrat', sans-serif;">Kontrol Kipas</h2>
+
+    <div class="grid-container">
+        <div class="fan-card">
+            <div class="fan-icon">
+                <img id="fan-img" src="Asset/fan.png" alt="fan">
+            </div>
+            <h3>Status Kipas</h3>
+            
+            <span id="fan" class="status">Mati</span>
+            
+            <button class="btn-power" onclick="toggleFan()">
+                <img src="Asset/power.png" onerror="this.src='Asset/idea.png'" alt="P" style="width:24px; filter: invert(1);">
+            </button>
         </div>
-        
-        <div class="fan-card off" id="speedCard">
-            <div class="fan-icon"><img src="Asset/fan-speed.png" alt="kecepatan"></div>
-            <p>Kecepatan</p>
-            <button class="speed-control speed-1" id="fanSpeed">1</button>
-            <div class="speed-label">Klik untuk ubah</div>
+
+        <div class="fan-card">
+            <div class="fan-icon"><img src="Asset/fan-speed.png" onerror="this.src='Asset/fan.png'" alt="speed"></div>
+            <h3>Atur Kecepatan</h3>
+            
+            <div class="speed-controls">
+                <button class="btn-speed" onclick="changeSpeed('turun')">-</button>
+                
+                <button class="btn-speed" onclick="changeSpeed('naik')">+</button>
+            </div>
+            <p style="font-size:12px; color:#888; margin-top:10px;">Tekan + / - untuk ubah speed</p>
         </div>
     </div>
-    
-    <a href="home.html" class="back-button">&#8592;</a>
+
+    <script src="home.js"></script>
 
     <script>
-        const MQTT_BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
-        const MQTT_TOPIC_PREFIX = 'smart_home/';
-        
-        let mqttClient = null;
-        let isConnected = false;
-        let fanStatus = false;
-        let fanSpeed = 50; // Default speed percentage
-        let pendingCommand = false;
-        
-        // Device configuration - index 6 untuk Kipas
-        const device = {
-            id: 'fan',
-            name: 'Kipas',
-            index: 6
+        // Override fungsi updateUI dari home.js agar bisa nambah animasi putar
+        const originalUpdateUI = updateUIFromResponse;
+
+        // Kita bikin wrapper untuk menangani animasi
+        updateUIFromResponse = function(name, status) {
+            // Panggil fungsi asli dulu biar teks/warna berubah
+            originalUpdateUI(name, status);
+
+            // Tambahan logika animasi
+            if (name.includes('kipas')) {
+                const img = document.getElementById('fan-img');
+                const isNyala = status.toUpperCase().includes('ON') || status.toUpperCase().includes('NYALA');
+                
+                if (isNyala) {
+                    img.classList.add('spin-animation');
+                } else {
+                    img.classList.remove('spin-animation');
+                }
+            }
         };
-        
-        // Fungsi koneksi MQTT
-        function connectToMQTT() {
-            console.log('Menghubungkan ke MQTT...');
-            updateMqttStatus('Connecting', 'connecting');
-            
-            const options = {
-                clientId: 'smart_home_fan_' + Math.random().toString(16).substr(2, 8),
-                clean: true,
-                reconnectPeriod: 1000,
-                connectTimeout: 30000
-            };
-        
-            mqttClient = mqtt.connect(MQTT_BROKER_URL, options);
-        
-            mqttClient.on('connect', () => {
-                console.log('✅ Terhubung ke MQTT');
-                isConnected = true;
-                updateMqttStatus('Connected', 'connected');
-                
-                subscribeToTopics();
-                
-                setTimeout(() => {
-                    sendCommand('STATUS');
-                    showNotification('✅ Terhubung ke sistem Smart Home', 'success');
-                }, 1000);
-            });
-        
-            mqttClient.on('message', (topic, message) => {
-                handleMessage(topic, message.toString());
-            });
-        
-            mqttClient.on('error', (error) => {
-                console.error('MQTT Error:', error);
-                updateMqttStatus('Error', 'disconnected');
-                isConnected = false;
-                showNotification('❌ Error koneksi MQTT', 'error');
-            });
-            
-            mqttClient.on('close', () => {
-                console.log('MQTT disconnected');
-                updateMqttStatus('Disconnected', 'disconnected');
-                isConnected = false;
-            });
-        }
-        
-        // Subscribe ke topik
-        function subscribeToTopics() {
-            const topics = [
-                MQTT_TOPIC_PREFIX + 'response',
-                MQTT_TOPIC_PREFIX + 'status',
-                MQTT_TOPIC_PREFIX + 'sensor'
-            ];
-        
-            topics.forEach(topic => {
-                mqttClient.subscribe(topic, { qos: 0 }, (err) => {
-                    if (!err) {
-                        console.log('Subscribed to:', topic);
-                    }
-                });
-            });
-        }
-        
-        // Handle pesan masuk
-        function handleMessage(topic, message) {
-            console.log('Received:', topic, '=>', message);
-            
-            // Skip system messages
-            if (message.includes("SISTEM KONTROL RUMAH") || 
-                message.includes("PERINTAH SERIAL:") ||
-                message.includes("Catatan:") ||
-                message.startsWith("ARDUINO_MEGA:") ||
-                message.startsWith("ESP32:") ||
-                message.includes("===============================")) {
-                return;
-            }
-            
-            // Parse kipas status
-            const msgLower = message.toLowerCase();
-            
-            if (msgLower.includes('kipas')) {
-                if (msgLower.includes(':')) {
-                    const parts = message.split(':');
-                    if (parts.length >= 2) {
-                        const status = parts[1].trim().toUpperCase();
-                        const isOn = status.includes('ON') || status.includes('AKTIF') || status.includes('NYALA');
-                        
-                        updateFanUI(isOn, false);
-                        pendingCommand = false;
-                        
-                        const action = isOn ? 'dinyalakan' : 'dimatikan';
-                        showNotification(`✅ Kipas ${action}`, 'success');
-                    }
-                }
-            }
-        }
-        
-        // Update status MQTT
-        function updateMqttStatus(text, statusClass) {
-            const element = document.getElementById('mqttStatus');
-            if (element) {
-                element.textContent = `MQTT: ${text}`;
-                element.className = 'mqtt-status ' + statusClass;
-            }
-        }
-        
-        // Update UI kipas
-        function updateFanUI(isOn, isSending = false) {
-            fanStatus = isOn;
-            
-            const checkbox = document.getElementById('fan');
-            if (checkbox) {
-                checkbox.checked = isOn;
-            }
-            
-            const statusElement = document.getElementById('fanStatus');
-            if (statusElement) {
-                if (isSending) {
-                    statusElement.textContent = 'Status: Mengirim...';
-                    statusElement.className = 'status-text sending';
-                } else {
-                    statusElement.textContent = `Status: ${isOn ? 'NYALA' : 'MATI'}`;
-                    statusElement.className = 'status-text';
-                }
-            }
-            
-            const cardElement = document.getElementById('fanCard');
-            if (cardElement) {
-                if (isSending) {
-                    cardElement.className = 'fan-card sending';
-                } else {
-                    cardElement.className = `fan-card ${isOn ? 'on' : 'off'}`;
-                }
-            }
-            
-            console.log(`Fan updated: ${isOn ? 'ON' : 'OFF'}, Sending: ${isSending}`);
-        }
-        
-        // Update speed UI
-        function updateSpeedUI(speed) {
-            const speedButton = document.getElementById('fanSpeed');
-            if (speedButton) {
-                speedButton.textContent = speed;
-                
-                // Update color based on speed
-                speedButton.className = 'speed-control';
-                if (speed === 1) {
-                    speedButton.classList.add('speed-1');
-                } else if (speed === 2) {
-                    speedButton.classList.add('speed-2');
-                } else if (speed === 3) {
-                    speedButton.classList.add('speed-3');
-                }
-            }
-        }
-        
-        // Kirim perintah ke Arduino
-        function sendCommand(command) {
-            if (!isConnected || !mqttClient) {
-                showNotification('❌ Tidak terhubung ke server MQTT', 'error');
-                return false;
-            }
-            
-            const topic = MQTT_TOPIC_PREFIX + 'control';
-            console.log('Sending:', command);
-            
-            mqttClient.publish(topic, command, { qos: 0 }, (err) => {
-                if (err) {
-                    console.error('Failed to send:', err);
-                    showNotification('❌ Gagal mengirim perintah', 'error');
-                    return false;
-                }
-            });
-            
-            return true;
-        }
-        
-        // Toggle kipas
+
+        // Fungsi Toggle Power
         function toggleFan() {
-            if (pendingCommand) {
-                showNotification('⏳ Perintah sebelumnya masih diproses...', 'info');
-                return;
-            }
+            const el = document.getElementById('fan');
+            const current = el.innerText;
             
-            const newState = !fanStatus;
-            pendingCommand = true;
-            updateFanUI(newState, true);
-            
-            // Command sesuai referensi: KIPASON speed atau KIPASOFF
-            const command = newState ? `KIPASON ${fanSpeed}` : 'KIPASOFF';
-            
-            if (sendCommand(command)) {
-                showNotification(`📤 ${newState ? 'Menyalakan' : 'Mematikan'} kipas...`, 'info');
+            if (current === 'Nyala' || current === 'ON') {
+                sendToPython('matikan kipas');
             } else {
-                pendingCommand = false;
-                updateFanUI(!newState, false);
+                sendToPython('nyalakan kipas');
             }
         }
-        
-        // Change speed (cycle through 1, 2, 3)
-        function changeSpeed() {
-            let currentSpeed = parseInt(document.getElementById('fanSpeed').textContent);
-            let newSpeed = currentSpeed >= 3 ? 1 : currentSpeed + 1;
-            
-            // Map speed level to percentage: 1=33%, 2=66%, 3=100%
-            const speedMap = {
-                1: 33,
-                2: 66,
-                3: 100
-            };
-            
-            fanSpeed = speedMap[newSpeed];
-            updateSpeedUI(newSpeed);
-            
-            // Jika kipas sedang nyala, kirim command baru
-            if (fanStatus) {
-                const command = `KIPASON ${fanSpeed}`;
-                if (sendCommand(command)) {
-                    showNotification(`⚡ Kecepatan diubah ke level ${newSpeed}`, 'info');
-                }
+
+        // Fungsi Ubah Kecepatan
+        function changeSpeed(direction) {
+            if (direction === 'naik') {
+                sendToPython('naikkan kecepatan kipas'); // Mapping: kipas_naik
             } else {
-                showNotification(`🔧 Kecepatan diatur ke level ${newSpeed}`, 'info');
+                sendToPython('turunkan kecepatan kipas'); // Mapping: kipas_turun
             }
         }
-        
-        // Tampilkan notifikasi
-        function showNotification(message, type = 'info') {
-            const notification = document.getElementById('notification');
-            if (notification) {
-                notification.textContent = message;
-                notification.className = 'notification';
-                
-                if (type === 'error') {
-                    notification.classList.add('error');
-                }
-                
-                notification.style.display = 'block';
-                
-                setTimeout(() => {
-                    notification.style.display = 'none';
-                }, 3000);
-            }
-        }
-        
-        // Setup event listeners
-        function setupEventListeners() {
-            const checkbox = document.getElementById('fan');
-            if (checkbox) {
-                checkbox.addEventListener('change', () => {
-                    toggleFan();
-                });
-            }
-            
-            const card = document.getElementById('fanCard');
-            if (card) {
-                card.addEventListener('click', (e) => {
-                    if (e.target.type !== 'checkbox' && 
-                        e.target.className !== 'slider') {
-                        const checkbox = document.getElementById('fan');
-                        checkbox.checked = !checkbox.checked;
-                        checkbox.dispatchEvent(new Event('change'));
-                    }
-                });
-            }
-            
-            const speedButton = document.getElementById('fanSpeed');
-            if (speedButton) {
-                speedButton.addEventListener('click', changeSpeed);
-            }
-        }
-        
-        // Inisialisasi saat halaman dimuat
-        window.onload = function() {
-            updateSpeedUI(1); // Default speed level 1
-            setupEventListeners();
-            connectToMQTT();
-        };
     </script>
 </body>
 </html>
