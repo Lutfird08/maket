@@ -1,32 +1,179 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <title>Smart Home Login</title>
     <link rel="stylesheet" href="index.css" />
-    <title>Login</title>
+
+    <style>
+        /* CSS Internal untuk memastikan tampilan rapi */
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            flex-direction: column;
+        }
+
+        .login-card {
+            background: white;
+            padding: 40px 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 350px;
+            text-align: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .logo img { width: 50px; }
+        
+        .logo-text {
+            text-align: left;
+            font-weight: 700;
+            color: #333;
+            font-size: 16px;
+            line-height: 1.2;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        .password-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .password-input {
+            width: 100%;
+            padding: 15px;
+            padding-right: 45px; /* Space for icon */
+            border: 2px solid #eee;
+            border-radius: 12px;
+            box-sizing: border-box;
+            font-family: inherit;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            outline: none;
+        }
+
+        .password-input:focus {
+            border-color: #4CAF50;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            opacity: 0.6;
+        }
+        
+        .toggle-password img { width: 20px; }
+
+        .btn-login {
+            width: 100%;
+            padding: 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+            box-shadow: 0 4px 10px rgba(76, 175, 80, 0.3);
+        }
+
+        .btn-login:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+        }
+
+        .btn-login:active { transform: scale(0.98); }
+
+        .footer {
+            margin-top: 30px;
+            font-size: 12px;
+            color: #888;
+            text-align: center;
+            line-height: 1.5;
+        }
+    </style>
 </head>
 
 <body>
     <div class="login-card">
         <div class="logo">
-            <img src="https://www.unpad.ac.id/wp-content/uploads/2018/04/logo-unpad1.png" alt="Logo">
-            <span class="logo-text">Teknik <br>Elektro</span>
+            <img src="https://www.unpad.ac.id/wp-content/uploads/2018/04/logo-unpad1.png" alt="Logo Unpad">
+            <span class="logo-text">Teknik Elektro<br>Universitas Padjadjaran</span>
         </div>
+
         <div class="password-container">
-            <input type="password" id="password" class="password-input" placeholder="Password">
+            <input type="password" id="password" class="password-input" placeholder="Masukkan Password..." onkeypress="checkEnter(event)">
             <span class="toggle-password" onclick="togglePassword()">
-                <img src="Asset/hide.png" alt="password">
+                <img id="eye-icon" src="Asset/hide.png" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2767/2767146.png'" alt="Show">
             </span>
         </div>
+
+        <button class="btn-login" onclick="login()">MASUK</button>
     </div>
+
     <div class="footer">
-        Lutfi Rahman Daniswara - NPM 140910200009
+        <strong>Lutfi Rahman Daniswara</strong><br>
+        NPM 140910200009<br>
+        Skripsi Smart Home IoT
     </div>
-</body>
+
+    <script>
+        // 1. Fungsi Login (Sederhana: Langsung ke Home)
+        function login() {
+            const pass = document.getElementById('password').value;
+            
+            // Opsional: Validasi Password Sederhana
+            // if (pass === "admin") {
+                window.location.href = "home.html"; // Redirect ke Dashboard
+            // } else {
+            //    alert("Password Salah!");
+            // }
+        }
+
+        // 2. Fungsi Tombol Enter
+        function checkEnter(event) {
+            if (event.key === "Enter") {
+                login();
+            }
+        }
+
+        // 3. Fungsi Show/Hide Password
+        function togglePassword() {
+            const input = document.getElementById('password');
+            const icon = document.getElementById('eye-icon');
+            
+            if (input.type === "password") {
+                input.type = "text";
+                // Ganti icon jika perlu (opsional)
+                icon.style.opacity = "1"; 
+            } else {
+                input.type = "password";
+                icon.style.opacity = "0.6";
+            }
+        }
+    </script>
+    
     <script src="index.js"></script>
+</body>
 </html>
