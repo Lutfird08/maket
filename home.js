@@ -1,41 +1,24 @@
 // ==========================================
-//  HOME.JS - SMART HOME LOGIC (FINAL FIX)
+//  HOME.JS - SMART HOME FINAL (FIXED STATUS & WELCOME)
 // ==========================================
 
-// Konfigurasi MQTT
 const MQTT_BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
 const MQTT_TOPIC_PREFIX = 'lutfi_140910/smart_home/';
 
-// Variabel Global
 let mqttClient = null;
 let isConnected = false;
 
-// 1. MAPPING PERANGKAT (ARDUINO INDEX -> NAMA)
-// Harus SAMA PERSIS dengan urutan di Arduino Mega
-const deviceNames = {
-    0: "Lampu Utama", 
-    1: "Lampu Kamar", 
-    2: "Lampu Tamu",
-    3: "Colokan Terminal", 
-    4: "Tirai Tutup", 
-    5: "Tirai Buka",
-    6: "Kipas", 
-    7: "Pompa Penyiram", 
-    8: "Solenoid Valve",
-    9: "Solenoid Door",
-    12: "AC" // Index AC
+// --- 1. MAPPING PERANGKAT (Arduino Name -> HTML ID) ---
+// Pastikan "Key" (kiri) sama persis dengan yang dikirim Arduino
+// Pastikan "Value" (kanan) sama dengan id="" di home.html
+const deviceMap = {
+    "lampu utama": "lamp",
+    "lampu kamar": "lamp", // Jika ingin lampu kamar update icon yang sama
+    "solenoid door": "door",
+    "ac": "status-ac" // (Jika nanti id ini ada)
 };
 
-// 2. MAPPING UI (INDEX -> HTML ID)
-// Menghubungkan Index Arduino ke ID elemen di home.html
-const deviceUI = {
-    0: 'lamp',       // Lampu Utama -> Update teks di id="lamp"
-    9: 'door',       // Pintu -> Update teks di id="door"
-    12: 'status-ac'  // AC -> Update teks di id="status-ac"
-};
-
-// --- KONEKSI MQTT ---
-
+// --- 2. KONEKSI MQTT ---
 function connectToMQTT() {
     console.log('Menghubungkan ke MQTT...');
     const options = {
@@ -51,11 +34,14 @@ function connectToMQTT() {
         isConnected = true;
         updateConnectionStatus(true);
         
-        // Subscribe ke SEMUA topik terkait
-        mqttClient.subscribe(MQTT_TOPIC_PREFIX + '#'); 
+        // Subscribe semua topik
+        mqttClient.subscribe(MQTT_TOPIC_PREFIX + '#');
         
-        // Minta status awal ke Arduino (biar gak loading terus)
-        setTimeout(() => sendToPython("STATUS"), 2000);
+        // PENTING: Minta status awal agar "Unknown" hilang
+        setTimeout(() => {
+            console.log("Meminta status awal...");
+            sendToPython("STATUS");
+        }, 1500); 
     });
 
     mqttClient.on('message', function (topic, message) {
@@ -66,89 +52,65 @@ function connectToMQTT() {
     mqttClient.on('error', (err) => console.error('MQTT Error:', err));
 }
 
-// --- HANDLER PESAN MASUK (INTI PERBAIKAN) ---
-
+// --- 3. HANDLER PESAN MASUK ---
 function handleIncomingMessage(topic, message) {
-    // A. DATA SENSOR (TAMPIL DI CHAT SESUAI REQUEST)
-    // Format Arduino: "SENSOR: LDR:100, Soil:200, Temp:28.00"
+    // A. DATA SENSOR
     if (message.startsWith("SENSOR:")) {
         const cleanMsg = message.replace("SENSOR:", "").trim();
         addChatMessage('Sensor', cleanMsg);
-        return; 
+        return;
     }
 
-    // B. SUARA BOT (DARI PYTHON)
+    // B. SUARA BOT
     if (topic.includes('voice_reply')) {
         addChatMessage('Bot', message);
         speak(message);
         return;
     }
 
-    // C. STATUS REALTIME PERANGKAT
-    // Format Arduino: "Nama Alat: Status" (Contoh: "Lampu Utama: ON")
+    // C. STATUS REALTIME (Update Icon/Teks)
+    // Format Arduino: "Nama Alat: Status"
     if (message.includes(':')) {
         const parts = message.split(':');
-        // Pastikan formatnya benar (minimal ada nama dan status)
         if (parts.length >= 2) {
-            const devName = parts[0].trim();
+            const devName = parts[0].trim().toLowerCase(); // Ubah ke huruf kecil biar aman
             const devStatus = parts[1].trim();
             
-            // Update Tampilan UI (Warna/Teks)
             updateUIFromResponse(devName, devStatus);
-            
-            // Opsional: Jika ingin status alat masuk chat juga, uncomment baris bawah:
-            // addChatMessage('System', `${devName} -> ${devStatus}`);
         }
     }
 }
 
-// --- FUNGSI UPDATE TAMPILAN (UI) ---
-
-function updateUIFromResponse(deviceName, status) {
-    const lowerName = deviceName.toLowerCase();
-    
-    // Status Boolean (Nyala/Mati)
-    const isOn = status.toUpperCase() === 'ON' || 
-                 status.toUpperCase() === 'TERBUKA' || 
-                 status.toUpperCase().includes('NYALA');
-
-    // Cari Perangkat di Mapping deviceNames
-    for (const [index, name] of Object.entries(deviceNames)) {
-        if (lowerName.includes(name.toLowerCase())) {
-            
-            // Jika perangkat ini punya tampilan di HTML (ada di deviceUI)
-            if (deviceUI[index]) {
-                const elementId = deviceUI[index];
-                const el = document.getElementById(elementId);
+// --- 4. UPDATE UI ---
+function updateUIFromResponse(name, status) {
+    // Cek apakah nama alat ada di mapping kita
+    // Kita cari apakah string dari Arduino mengandung kata kunci di deviceMap
+    for (const [key, elementId] of Object.entries(deviceMap)) {
+        if (name.includes(key)) {
+            const el = document.getElementById(elementId);
+            if (el) {
+                // Tentukan Teks & Warna
+                const isNyala = status.toUpperCase() === 'ON' || status.toUpperCase() === 'TERBUKA';
                 
-                if (el) {
-                    // Update Teks Status
-                    // Khusus Pintu: Terbuka/Terkunci, Lainnya: Nyala/Mati
-                    if (index == 9) {
-                        el.innerText = isOn ? "Terbuka" : "Terkunci";
-                    } else {
-                        el.innerText = isOn ? "Nyala" : "Mati";
-                    }
-
-                    // Update Warna (Hijau=Nyala, Merah=Mati)
-                    el.style.color = isOn ? "#4CAF50" : "#f44336";
-                    el.style.fontWeight = "bold";
-                    
-                    console.log(`✅ UI Updated: ${name} -> ${status}`);
+                // Khusus Pintu teksnya beda
+                if (elementId === 'door') {
+                    el.innerText = isNyala ? "Terbuka" : "Terkunci";
+                } else {
+                    el.innerText = isNyala ? "Nyala" : "Mati";
                 }
+
+                // Ubah Warna (Hijau=Nyala, Merah=Mati)
+                el.style.color = isNyala ? "#4CAF50" : "#f44336";
+                el.style.fontWeight = "bold";
             }
-            break; // Ketemu, stop loop
         }
     }
 }
 
-// --- FUNGSI KIRIM PERINTAH ---
-
+// --- 5. KIRIM PERINTAH ---
 function sendToPython(text) {
     if (isConnected) {
-        const topicInput = MQTT_TOPIC_PREFIX + 'voice_input';
-        mqttClient.publish(topicInput, text.toLowerCase());
-        console.log("Dikirim:", text);
+        mqttClient.publish(MQTT_TOPIC_PREFIX + 'voice_input', text.toLowerCase());
     } else {
         alert("Koneksi MQTT Putus!");
     }
@@ -164,40 +126,42 @@ function sendMessage() {
     input.value = '';
 }
 
-// --- FITUR TAMBAHAN (CHAT, SUARA, JAM) ---
-
+// --- 6. FITUR CHAT & SUARA ---
 function addChatMessage(sender, message) {
     const chatBox = document.getElementById('chatMessages');
     if (!chatBox) return;
     
     const div = document.createElement('div');
-    
-    // Styling Pesan
-    div.style.marginBottom = '8px';
-    div.style.padding = '8px 12px';
+    div.style.marginBottom = '10px';
+    div.style.padding = '10px';
     div.style.borderRadius = '10px';
     div.style.maxWidth = '85%';
     div.style.fontSize = '14px';
-    div.style.lineHeight = '1.4';
     
     if (sender === 'Anda') {
-        div.style.marginLeft = 'auto'; // Rata Kanan
+        div.style.marginLeft = 'auto';
         div.style.backgroundColor = '#e3f2fd';
         div.style.textAlign = 'right';
         div.innerHTML = `<strong>${sender}</strong><br>${message}`;
     } else if (sender === 'Sensor') {
-        div.style.marginRight = 'auto'; // Rata Kiri
-        div.style.backgroundColor = '#fff3e0'; // Warna Oranye Muda utk Sensor
+        div.style.marginRight = 'auto';
+        div.style.backgroundColor = '#fff3e0'; // Kuning Sensor
         div.style.border = '1px solid #ffe0b2';
-        div.innerHTML = `<strong>📡 Sensor Data</strong><br><span style="font-family:monospace">${message}</span>`;
-    } else { // Bot / System
+        div.innerHTML = `<strong>📡 Data Sensor</strong><br>${message}`;
+    } else if (sender === 'System') {
+        div.style.margin = '10px auto';
+        div.style.backgroundColor = '#e8f5e9'; // Hijau Welcome
+        div.style.textAlign = 'center';
+        div.style.width = '90%';
+        div.innerHTML = `${message}`;
+    } else { // Bot
         div.style.marginRight = 'auto';
         div.style.backgroundColor = '#f5f5f5';
         div.innerHTML = `<strong>${sender}</strong><br>${message}`;
     }
     
     chatBox.appendChild(div);
-    chatBox.scrollTop = chatBox.scrollHeight; // Auto scroll ke bawah
+    chatBox.scrollTop = chatBox.scrollHeight;
 }
 
 function speak(text) {
@@ -230,9 +194,8 @@ function startVoiceRecognition() {
 function updateConnectionStatus(connected) {
     const els = document.querySelectorAll('.status-text');
     els.forEach(el => {
-        if (el.innerText === 'Loading...' || el.innerText === 'Offline') {
-            el.innerText = connected ? "Mati" : "Offline";
-            el.style.color = connected ? "#f44336" : "#9e9e9e";
+        if (el.innerText === 'Unknown' || el.innerText === 'Loading...') {
+            el.innerText = connected ? "Mati" : "Offline"; // Default awal sebelum dpt status
         }
     });
 }
@@ -245,11 +208,25 @@ function updateDateTime() {
     if(elDate) elDate.innerText = now.toLocaleDateString('id-ID', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
 }
 
+// --- 7. INITIALIZATION (WELCOME MESSAGE) ---
 window.onload = function() {
     updateDateTime();
     setInterval(updateDateTime, 60000);
     connectToMQTT();
     
+    // Pesan Selamat Datang (Delay dikit biar smooth)
+    setTimeout(() => {
+        const welcomeText = `
+            <strong>👋 Selamat Datang di Smart Home!</strong><br><br>
+            Silakan coba perintah berikut:<br>
+            💡 "Nyalakan lampu utama"<br>
+            🚪 "Buka pintu"<br>
+            ❄️ "Nyalakan AC"<br>
+            🌡️ "Berapa suhu sekarang?"
+        `;
+        addChatMessage('System', welcomeText);
+    }, 1000);
+
     const input = document.getElementById('userInput');
     if (input) {
         input.addEventListener('keypress', (e) => {
@@ -258,8 +235,6 @@ window.onload = function() {
     }
 };
 
-// Export Global Functions
 window.sendMessage = sendMessage;
 window.startVoiceRecognition = startVoiceRecognition;
-window.sendToPython = sendToPython;
 window.toggleMenu = () => document.getElementById('hamburgerMenu').classList.toggle('active');
