@@ -1,213 +1,209 @@
 // ==========================================
-//  HOME.JS - FINAL (FULL MAPPING FOR STATUS PAGE)
+// 🔗 KONFIGURASI KONEKSI (NGROK)
 // ==========================================
+// ⚠️ PENTING: Ganti link ini setiap kali Ngrok di-restart!
+const API_BASE_URL = "https://renascent-scoffingly-kimiko.ngrok-free.dev"; 
 
-const MQTT_BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
-const MQTT_TOPIC_PREFIX = 'lutfi_140910/smart_home/';
-
-let mqttClient = null;
-let isConnected = false;
-let indoVoice = null;
-
-// --- MAPPING LENGKAP (Agar Halaman Status Berfungsi) ---
-// Kiri: Nama dr Arduino (Huruf Kecil) | Kanan: ID HTML
+// ==========================================
+// 🗺️ MAPPING PERANGKAT (Python Key -> HTML ID)
+// ==========================================
+// Kiri: Nama Key di JSON Python | Kanan: ID di HTML
 const deviceMap = {
-    // Lampu
-    "lampu utama": "lamp1",  // Di home.html pakai id="lamp", di status.html id="lamp1"
-    "lampu kamar": "lamp2",
-    "lampu tamu":  "lamp3",
-
-    // Pintu & Keamanan
-    "solenoid door": "door",
-    
-    // Pendingin
-    "ac": "status-ac",
-    "kipas": "fan",
-
-    // Lainnya
-    "colokan terminal": "socket",
-    "pompa penyiram": "pump",
-    "solenoid valve": "valve",
-    "kran": "valve", // Alias
-    
-    // Tirai
-    "tirai buka": "curtain",
-    "tirai tutup": "curtain"
+    "lampu_utama": "lamp1",  // Di status.html
+    "lampu_kamar": "lamp2",
+    "lampu_tamu":  "lamp3",
+    "ac_status":   "status-ac",
+    "kipas":       "fan",
+    "pintu":       "door",
+    "tirai":       "curtain",
+    "terminal":    "socket",
+    "pompa":       "pump",
+    "kran":        "valve"
 };
 
-// --- KONEKSI MQTT ---
-function connectToMQTT() {
-    console.log('Menghubungkan ke MQTT...');
-    const options = {
-        clientId: 'WebClient_' + Math.random().toString(16).substr(2, 8),
-        clean: true, reconnectPeriod: 5000,
+// ==========================================
+// 📡 FUNGSI 1: KIRIM PERINTAH (CHAT & TOMBOL)
+// ==========================================
+async function sendToPython(command) {
+    console.log("Mengirim perintah:", command);
+
+    // 1. Tampilkan di Chatbox (Jika ada)
+    addChatMessage("Anda", command);
+
+    try {
+        // 2. Kirim ke Raspberry Pi via Ngrok
+        const response = await fetch(`${API_BASE_URL}/chat?q=${encodeURIComponent(command)}`, {
+            method: "GET",
+            headers: { "ngrok-skip-browser-warning": "true" }
+        });
+
+        const reply = await response.text();
+        
+        // 3. Tampilkan Balasan Bot
+        addChatMessage("🤖 Sistem", reply);
+
+        // 4. Update status visual seketika (biar cepat)
+        setTimeout(fetchStatus, 500); 
+
+    } catch (error) {
+        console.error("Error:", error);
+        addChatMessage("⚠️ Error", "Gagal terhubung ke Rumah. Cek Ngrok/Pi.");
+    }
+}
+
+// Wrapper untuk tombol Chat
+function sendMessage() {
+    const input = document.getElementById("userInput");
+    if (input && input.value.trim() !== "") {
+        sendToPython(input.value.trim());
+        input.value = "";
+    }
+}
+
+// ==========================================
+// 📊 FUNGSI 2: UPDATE STATUS OTOMATIS
+// ==========================================
+async function fetchStatus() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/status`, {
+            headers: { "ngrok-skip-browser-warning": "true" }
+        });
+        
+        // Data diterima dari Python (JSON)
+        // Contoh: { "lampu_utama": "Hidup", "suhu": 25 }
+        const data = await response.json(); 
+
+        // 1. Update Semua Perangkat Berdasarkan Mapping
+        for (const [key, elementId] of Object.entries(deviceMap)) {
+            if (data[key]) {
+                updateElement(elementId, data[key]);
+            }
+        }
+
+        // 2. Update Khusus Dashboard Utama (home.html)
+        // Karena di home.html ID-nya beda ("lamp" dan "door")
+        if (data.lampu_utama) updateElement("lamp", data.lampu_utama);
+        if (data.pintu) updateElement("door", data.pintu);
+
+        // 3. Update Suhu AC (Jika ada)
+        if (data.ac_suhu && document.getElementById("temp-val")) {
+            document.getElementById("temp-val").innerText = data.ac_suhu + "°C";
+        }
+
+    } catch (error) {
+        // Error silent (biar console gak penuh merah kalau koneksi putus sebentar)
+    }
+}
+
+// Fungsi bantu ubah Warna & Teks
+function updateElement(elementId, statusValue) {
+    const el = document.getElementById(elementId);
+    if (el) {
+        el.innerText = statusValue; // Ubah teks
+        
+        // Logika Warna
+        const val = statusValue.toString().toUpperCase();
+        if (val.includes("HIDUP") || val.includes("ON") || val.includes("BUKA") || val.includes("TERBUKA")) {
+            el.style.color = "#4CAF50"; // Hijau
+            el.style.fontWeight = "bold";
+        } else {
+            el.style.color = "#f44336"; // Merah
+            el.style.fontWeight = "bold";
+        }
+    }
+}
+
+// Update otomatis setiap 2 detik
+setInterval(fetchStatus, 2000);
+
+// ==========================================
+// 🎤 FUNGSI 3: VOICE RECOGNITION
+// ==========================================
+function startVoiceRecognition() {
+    // Cek dukungan browser
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+        alert("Browser ini tidak mendukung fitur suara. Gunakan Google Chrome.");
+        return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'id-ID'; // Bahasa Indonesia
+    
+    recognition.onstart = () => {
+        const input = document.getElementById("userInput");
+        if(input) input.placeholder = "Mendengarkan...";
     };
 
-    mqttClient = mqtt.connect(MQTT_BROKER_URL, options);
+    recognition.onresult = (event) => {
+        const command = event.results[0][0].transcript;
+        const input = document.getElementById("userInput");
+        if(input) {
+            input.value = command;
+            input.placeholder = "Ketik perintah...";
+        }
+        sendToPython(command); // Kirim otomatis
+    };
 
-    mqttClient.on('connect', function () {
-        console.log('✅ Terhubung ke MQTT!');
-        isConnected = true;
-        updateConnectionStatus(true);
-        mqttClient.subscribe(MQTT_TOPIC_PREFIX + '#');
-        
-        // Minta status awal
-        setTimeout(() => { console.log("Req Status..."); sendToPython("STATUS"); }, 1500); 
-    });
-
-    mqttClient.on('message', function (topic, message) {
-        handleIncomingMessage(topic, message.toString());
-    });
-
-    mqttClient.on('close', () => updateConnectionStatus(false));
+    recognition.start();
 }
 
-// --- HANDLER PESAN ---
-function handleIncomingMessage(topic, message) {
-    if (message.startsWith("SENSOR:")) {
-        // Tampilkan sensor hanya jika ada elemen chat (di home.html)
-        if(document.getElementById('chatMessages')) {
-            addChatMessage('Sensor', message.replace("SENSOR:", "").trim());
-        }
-        return;
-    }
+// ==========================================
+// 🕒 FUNGSI 4: JAM & UI HELPER
+// ==========================================
+function updateTime() {
+    const timeEl = document.querySelector('.time');
+    const dateEl = document.querySelector('.date');
     
-    if (topic.includes('voice_reply')) {
-        if(document.getElementById('chatMessages')) addChatMessage('Bot', message);
-        speak(message);
-        return;
-    }
-
-    if (message.includes(':')) {
-        const parts = message.split(':');
-        if (parts.length >= 2) {
-            updateUIFromResponse(parts[0].trim().toLowerCase(), parts[1].trim());
-        }
+    if(timeEl && dateEl) {
+        const now = new Date();
+        timeEl.innerText = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        dateEl.innerText = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' });
     }
 }
+setInterval(updateTime, 1000);
 
-// --- UPDATE UI (MULTIPLE ID SUPPORT) ---
-function updateUIFromResponse(name, status) {
-    // 1. Cek Mapping Utama
-    for (const [key, elementId] of Object.entries(deviceMap)) {
-        if (name.includes(key)) {
-            // Coba update elemen spesifik (misal: lamp1, lamp2 di status.html)
-            updateElementState(elementId, status);
+function addChatMessage(sender, text) {
+    const chatBox = document.getElementById("chatMessages");
+    if (!chatBox) return;
 
-            // KHUSUS LAMPU UTAMA: 
-            // Di home.html ID-nya "lamp", di status.html ID-nya "lamp1"
-            // Jadi kita update juga ID "lamp" jika yang berubah adalah "lampu utama"
-            if (key === "lampu utama") updateElementState("lamp", status);
-        }
-    }
-}
-
-function updateElementState(id, status) {
-    const el = document.getElementById(id);
-    if (el) {
-        const isNyala = status.toUpperCase().includes('ON') || 
-                        status.toUpperCase().includes('TERBUKA') || 
-                        status.toUpperCase().includes('NYALA') ||
-                        status.toUpperCase().includes('MEMBUKA');
-
-        if (id === 'door') {
-            el.innerText = isNyala ? "Terbuka" : "Terkunci";
-        } else if (id === 'curtain') {
-            el.innerText = status; 
-        } else {
-            el.innerText = isNyala ? "Nyala" : "Mati";
-        }
-        
-        el.style.color = isNyala ? "#4CAF50" : "#f44336";
-        el.style.fontWeight = "bold";
-    }
-}
-
-// --- FUNGSI LAINNYA (Standard) ---
-function sendToPython(text) {
-    if (isConnected) mqttClient.publish(MQTT_TOPIC_PREFIX + 'voice_input', text.toLowerCase());
-}
-
-function sendMessage() {
-    const input = document.getElementById('userInput');
-    if (input && input.value.trim() !== '') {
-        addChatMessage('Anda', input.value.trim());
-        sendToPython(input.value.trim());
-        input.value = '';
-    }
-}
-
-function addChatMessage(sender, message) {
-    const chatBox = document.getElementById('chatMessages');
-    if (!chatBox) return; // Kalau di halaman status (gak ada chat), skip aja
-    
-    const div = document.createElement('div');
-    div.style.marginBottom = '10px'; div.style.padding = '10px';
-    div.style.borderRadius = '10px'; div.style.maxWidth = '85%';
-    div.style.fontSize = '14px';
-    
-    if (sender === 'Anda') {
-        div.style.marginLeft = 'auto'; div.style.backgroundColor = '#e3f2fd'; div.style.textAlign = 'right';
-        div.innerHTML = `<strong>${sender}</strong><br>${message}`;
+    const div = document.createElement("div");
+    // Style pesan User vs Bot
+    if (sender === "Anda") {
+        div.style.textAlign = "right";
+        div.innerHTML = `<span style="background:#007bff; color:white; padding:8px 15px; border-radius:15px 15px 0 15px; display:inline-block; margin:5px;">${text}</span>`;
     } else {
-        div.style.marginRight = 'auto'; div.style.backgroundColor = '#f5f5f5';
-        div.innerHTML = `<strong>${sender}</strong><br>${message}`;
+        div.style.textAlign = "left";
+        div.innerHTML = `<span style="background:#e9ecef; color:black; padding:8px 15px; border-radius:15px 15px 15px 0; display:inline-block; margin:5px;">🤖 ${text}</span>`;
     }
+    
     chatBox.appendChild(div);
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// Voice Logic
-function loadVoices() {
-    const voices = window.speechSynthesis.getVoices();
-    indoVoice = voices.find(v => v.name === 'Google Bahasa Indonesia') || voices.find(v => v.lang === 'id-ID');
-}
-if ('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged = loadVoices;
-
-function speak(text) {
-    if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = 'id-ID'; u.rate = 0.95;
-        if (!indoVoice) loadVoices();
-        if (indoVoice) u.voice = indoVoice;
-        window.speechSynthesis.speak(u);
+function toggleMenu() {
+    const menu = document.getElementById('hamburgerMenu');
+    if(menu) menu.classList.toggle('active'); // Pastikan CSS .active ada
+    
+    // Fallback jika class active belum diatur di CSS
+    if(menu && menu.style.display === "block") {
+        menu.style.display = "none";
+    } else if(menu) {
+        menu.style.display = "block";
     }
 }
 
-function startVoiceRecognition() {
-    if (!('webkitSpeechRecognition' in window)) { alert("Gunakan Chrome"); return; }
-    const recognition = new webkitSpeechRecognition();
-    recognition.lang = 'id-ID';
-    recognition.start();
-    recognition.onresult = (e) => {
-        const txt = e.results[0][0].transcript;
-        if(document.getElementById('chatMessages')) addChatMessage('Anda', txt);
-        sendToPython(txt);
-    };
-}
-
-function updateConnectionStatus(connected) {
-    const els = document.querySelectorAll('.status-value, .status-text'); // Support kedua class
-    els.forEach(el => {
-        if (el.innerText === 'Unknown' || el.innerText === 'Offline' || el.innerText === 'Loading...') {
-            el.innerText = connected ? "Mati" : "Offline";
-            el.style.color = connected ? "#f44336" : "#9e9e9e";
-        }
-    });
-}
-
+// Inisialisasi
 window.onload = function() {
-    connectToMQTT();
-    if('speechSynthesis' in window) loadVoices();
+    updateTime();
+    fetchStatus();
     
-    // Welcome message hanya di halaman Home
-    if(document.getElementById('chatMessages')) {
-        setTimeout(() => addChatMessage('System', '👋 Sistem Siap. Ketik "Status" untuk update.'), 1500);
+    // Listener Enter di Input
+    const input = document.getElementById("userInput");
+    if(input) {
+        input.addEventListener("keypress", function(e) {
+            if (e.key === "Enter") sendMessage();
+        });
     }
 };
-
-window.toggleMenu = () => document.getElementById('hamburgerMenu').classList.toggle('active');
-window.sendMessage = sendMessage;
-window.startVoiceRecognition = startVoiceRecognition;
-window.sendToPython = sendToPython;
