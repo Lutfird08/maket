@@ -1,38 +1,53 @@
-// Password yang valid (bisa diganti sesuai kebutuhan)
-const VALID_PASSWORD = "lutfi123";
+// ==========================================
+// 🔐 KONFIGURASI PASSWORD
+// ==========================================
+// Ganti "lutfi123" dengan password yang Anda inginkan
+const VALID_PASSWORD = "lutfi123"; 
 
-function togglePassword() {
-    let passwordInput = document.getElementById("password");
-    let toggleButton = document.querySelector(".toggle-password");
-    let toggleImage = toggleButton.querySelector("img");
-
-    if (passwordInput.type === "password") {
-        passwordInput.type = "text";
-        toggleImage.src = "Asset/view.png";
-    } else {
-        passwordInput.type = "password";
-        toggleImage.src = "Asset/hide.png";
-    }
-}
-
-function validatePassword() {
+// ==========================================
+// 🚀 FUNGSI LOGIN (Dipanggil Tombol MASUK)
+// ==========================================
+function login() {
     let passwordInput = document.getElementById("password");
     let password = passwordInput.value.trim();
 
-    // Validasi langsung di frontend
+    // Cek kecocokan password
     if (password === VALID_PASSWORD) {
-        // Redirect ke halaman home (atau halaman lain)
-        window.location.href = "home.html"; // Ganti dengan halaman tujuan
+        // JIKA BENAR:
+        console.log("Login Berhasil!");
+        window.location.href = "home.html"; // Pindah ke Dashboard
     } else {
-        alert('Password salah! Silakan coba lagi.');
+        // JIKA SALAH:
+        alert('⚠️ Password salah! Silakan coba lagi.');
         passwordInput.value = ""; // Kosongkan input
-        passwordInput.focus(); // Fokus kembali ke input
+        passwordInput.focus();    // Fokuskan kursor kembali
     }
 }
 
-// Event listener untuk tombol Enter
+// ==========================================
+// 👁️ FUNGSI INTIP PASSWORD (Mata)
+// ==========================================
+function togglePassword() {
+    let passwordInput = document.getElementById("password");
+    let toggleImage = document.getElementById("eye-icon"); // Pastikan ID ini ada di HTML
+
+    if (passwordInput.type === "password") {
+        // Ubah jadi teks (terlihat)
+        passwordInput.type = "text";
+        toggleImage.src = "Asset/view.png"; // Gambar mata terbuka
+    } else {
+        // Ubah jadi password (titik-titik)
+        passwordInput.type = "password";
+        toggleImage.src = "Asset/hide.png"; // Gambar mata tertutup/dicoret
+    }
+}
+
+// ==========================================
+// ⌨️ EVENT LISTENER TOMBOL ENTER
+// ==========================================
+// Agar user bisa langsung tekan Enter tanpa klik tombol Masuk
 document.getElementById("password").addEventListener("keyup", function(event) {
     if (event.key === "Enter") {
-        validatePassword();
+        login();
     }
 });
