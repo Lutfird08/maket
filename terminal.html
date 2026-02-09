@@ -1,56 +1,82 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <title>Kontrol Terminal</title>
+    
     <link rel="stylesheet" href="home.css">
     
     <style>
         /* Layout Grid */
         .container {
-            padding: 80px 20px 20px;
+            padding: 40px 20px;
             display: flex;
             justify-content: center;
+            align-items: center;
+            min-height: 60vh;
         }
         
         /* Card Style */
         .terminal-card {
             background-color: white;
-            border-radius: 15px;
-            padding: 40px;
+            border-radius: 20px;
+            padding: 40px 30px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             width: 100%;
             max-width: 350px;
             text-align: center;
-            cursor: pointer;
             transition: transform 0.2s;
         }
 
-        .terminal-card:active { transform: scale(0.98); }
+        .terminal-card:hover { transform: translateY(-5px); }
 
         .terminal-icon {
-            width: 100px; height: 100px; margin-bottom: 20px;
+            width: 100px; height: 100px; 
+            margin-bottom: 25px;
+            background: #f5f5f5;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
         }
-        .terminal-icon img { width: 100%; height: 100%; object-fit: contain; }
+        
+        .terminal-icon img { width: 60%; }
 
         /* Status Teks */
+        .status-title { font-size: 16px; color: #888; margin-bottom: 5px; font-family: 'Poppins', sans-serif; }
+
         .status-text {
-            font-size: 24px; font-weight: bold; margin: 10px 0;
+            font-size: 28px; font-weight: bold; margin-bottom: 30px;
             color: #f44336; /* Default Merah (Mati) */
+            font-family: 'Montserrat', sans-serif;
         }
 
-        .info-text {
-            font-size: 14px; color: #666; margin-top: 15px;
+        /* Tombol Power Besar */
+        .btn-power {
+            background: linear-gradient(135deg, #FF9800, #F57C00);
+            color: white;
+            border: none;
+            padding: 18px 0;
+            width: 100%;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(255, 152, 0, 0.3);
+            transition: all 0.3s ease;
+            display: flex; justify-content: center; align-items: center; gap: 10px;
         }
+
+        .btn-power:active { transform: scale(0.96); box-shadow: 0 4px 10px rgba(255, 152, 0, 0.3); }
+        .btn-power img { width: 24px; filter: invert(1); }
+
     </style>
 </head>
 <body>
+
     <div class="header">
         <div class="logo">
             <img src="https://www.unpad.ac.id/wp-content/uploads/2018/04/logo-unpad1.png" alt="Logo">
@@ -62,33 +88,38 @@
     <div class="hamburger-menu" id="hamburgerMenu">
         <span class="close-menu" onclick="toggleMenu()">×</span>
         <ul class="menu-items">
-            <li><a href="home.html">🏠 Dashboard (Kembali)</a></li>
-            <li><a href="lampu.html">Lampu</a></li>
-            <li><a href="terminal.html" style="font-weight:bold;">🔌 Terminal Listrik</a></li>
+            <li><a href="home.html">🏠 Dashboard</a></li>
+            <li><a href="lampu.html">💡 Lampu</a></li>
+            <li><a href="terminal.html" style="font-weight:bold; color: #FF9800;">🔌 Terminal Listrik</a></li>
             <li><a href="tirai.html">Tirai</a></li>
             <li><a href="kipas.html">Kipas</a></li>
             <li><a href="water.html">Saluran Air</a></li>
             <li><a href="ac.html">AC</a></li>
             <li><a href="plant.html">Penyiram Tanaman</a></li>
             <li><a href="door.html">Door Lock</a></li>
-            <li><a href="status.html">📊 Status Perangkat</a></li>
+            <li style="border-top: 1px solid #ddd; margin-top: 10px; padding-top: 10px;">
+                <a href="status.html">📊 Status Perangkat</a>
+            </li>
         </ul>
     </div>
 
-    <h2 style="text-align:center; margin-top:20px; font-family: 'Montserrat', sans-serif;">Terminal Listrik</h2>
-
     <div class="container">
-        <div class="terminal-card" onclick="toggleTerminal()">
+        <div class="terminal-card">
             <div class="terminal-icon">
                 <img src="Asset/socket.png" alt="terminal">
             </div>
             
-            <h3 style="margin:0; color:#555;">Status Terminal</h3>
+            <div class="status-title">Status Terminal Listrik</div>
             
             <div id="socket" class="status-text">Mati</div>
             
-            <p class="info-text">
-                (Klik kartu ini untuk Nyalakan/Matikan Terminal)
+            <button class="btn-power" onclick="toggleTerminal()">
+                <img src="Asset/idea.png" alt="Power">
+                <span>NYALAKAN / MATIKAN</span>
+            </button>
+            
+            <p style="font-size:12px; color:#aaa; margin-top:20px; font-style:italic;">
+                Mengontrol aliran listrik ke terminal tambahan.
             </p>
         </div>
     </div>
@@ -98,14 +129,18 @@
     <script>
         function toggleTerminal() {
             const el = document.getElementById('socket');
-            const current = el.innerText;
+            const currentStatus = el.innerText.toUpperCase();
             
-            // Logika Toggle
-            if (current === 'Nyala' || current === 'ON') {
-                sendToPython('matikan terminal');
+            let command = "";
+            
+            // Cek status dan kirim perintah sebaliknya
+            if (currentStatus.includes("NYALA") || currentStatus.includes("ON") || currentStatus.includes("HIDUP")) {
+                command = "matikan terminal";
             } else {
-                sendToPython('nyalakan terminal');
+                command = "nyalakan terminal";
             }
+            
+            sendToPython(command);
         }
     </script>
 </body>
