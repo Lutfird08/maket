@@ -1,88 +1,90 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-    <title>Smart Home Door Control</title>
+    <title>Smart Lock</title>
+    
     <link rel="stylesheet" href="home.css">
     
     <style>
-        /* Layout Grid */
+        /* Layout Tengah */
         .container {
-            padding: 80px 20px 20px;
+            padding: 40px 20px;
             display: flex;
             justify-content: center;
+            align-items: center;
+            min-height: 60vh;
         }
         
         /* Card Style */
         .door-card {
             background-color: white;
-            border-radius: 15px;
-            padding: 40px;
+            border-radius: 20px;
+            padding: 40px 30px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             width: 100%;
             max-width: 350px;
             text-align: center;
+            transition: transform 0.3s;
         }
+
+        .door-card:hover { transform: translateY(-5px); }
 
         .door-icon {
             width: 100px;
             height: 100px;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
+            background: #f5f5f5;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .door-icon img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
+        .door-icon img { width: 60%; }
 
         /* Status Teks */
+        .status-title { font-size: 16px; color: #888; margin-bottom: 5px; font-family: 'Poppins', sans-serif; }
+        
         .status-text {
-            font-size: 24px;
+            font-size: 28px;
             font-weight: bold;
-            margin: 10px 0;
-            color: #f44336; /* Merah default (Terkunci) */
+            margin-bottom: 30px;
+            color: #f44336; /* Default Merah */
+            font-family: 'Montserrat', sans-serif;
         }
 
-        /* Tombol Buka Kunci Besar */
-        .btn-unlock {
-            background-color: #4CAF50; /* Hijau */
+        /* Tombol Toggle Besar */
+        .btn-lock {
+            background: linear-gradient(135deg, #2196F3, #1976D2);
             color: white;
             border: none;
-            padding: 15px 40px;
+            padding: 18px 0;
+            width: 100%;
             border-radius: 50px;
             font-size: 18px;
             font-weight: 600;
             cursor: pointer;
-            margin-top: 20px;
-            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
-            transition: transform 0.2s, background-color 0.3s;
-            width: 100%;
+            box-shadow: 0 8px 20px rgba(33, 150, 243, 0.3);
+            transition: all 0.3s ease;
+            display: flex; justify-content: center; align-items: center; gap: 10px;
         }
 
-        .btn-unlock:hover {
-            background-color: #45a049;
-            transform: translateY(-2px);
-        }
-
-        .btn-unlock:active {
-            transform: scale(0.95);
-        }
+        .btn-lock:active { transform: scale(0.96); box-shadow: 0 4px 10px rgba(33, 150, 243, 0.3); }
+        .btn-lock img { width: 20px; filter: invert(1); }
 
         .note {
-            font-size: 12px;
-            color: #888;
-            margin-top: 15px;
+            font-size: 12px; color: #aaa; margin-top: 20px; font-style: italic;
         }
     </style>
 </head>
 <body>
+
     <div class="header">
         <div class="logo">
             <img src="https://www.unpad.ac.id/wp-content/uploads/2018/04/logo-unpad1.png" alt="Logo">
@@ -94,35 +96,38 @@
     <div class="hamburger-menu" id="hamburgerMenu">
         <span class="close-menu" onclick="toggleMenu()">×</span>
         <ul class="menu-items">
-            <li><a href="home.html">🏠 Dashboard (Kembali)</a></li>
-            <li><a href="lampu.html">Lampu</a></li>
+            <li><a href="home.html">🏠 Dashboard</a></li>
+            <li><a href="lampu.html">💡 Lampu</a></li>
             <li><a href="terminal.html">Terminal Listrik</a></li>
             <li><a href="tirai.html">Tirai</a></li>
             <li><a href="kipas.html">Kipas</a></li>
             <li><a href="water.html">Saluran Air</a></li>
             <li><a href="ac.html">AC</a></li>
             <li><a href="plant.html">Penyiram Tanaman</a></li>
-            <li><a href="door.html" style="font-weight:bold;">🚪 Door Lock</a></li>
-            <li><a href="status.html">📊 Status Perangkat</a></li>
+            <li><a href="door.html" style="font-weight:bold; color: #2196F3;">🚪 Door Lock</a></li>
+            <li style="border-top: 1px solid #ddd; margin-top: 10px; padding-top: 10px;">
+                <a href="status.html">📊 Status Perangkat</a>
+            </li>
         </ul>
     </div>
 
     <div class="container">
         <div class="door-card">
             <div class="door-icon">
-                <img src="Asset/door_lock.png" alt="door">
+                <img src="Asset/door_lock.png" alt="Door Lock">
             </div>
             
-            <h3 style="margin:0; color:#555;">Status Pintu Utama</h3>
+            <div class="status-title">Status Pintu Utama</div>
             
             <div id="door" class="status-text">Terkunci</div>
             
-            <button class="btn-unlock" onclick="unlockDoor()">
-                🔓 BUKA PINTU
+            <button class="btn-lock" onclick="toggleDoor()">
+                <img src="Asset/idea.png" alt="Icon">
+                <span>BUKA / KUNCI</span>
             </button>
             
             <p class="note">
-                (Pintu akan otomatis terkunci kembali setelah 5 detik)
+                Tekan tombol untuk mengubah status kunci pintu secara manual.
             </p>
         </div>
     </div>
@@ -130,14 +135,20 @@
     <script src="home.js"></script>
     
     <script>
-        function unlockDoor() {
-            // Ubah tampilan sementara agar responsif
+        function toggleDoor() {
+            // Ambil status saat ini dari teks di layar
             const el = document.getElementById('door');
-            el.innerText = "Membuka...";
-            el.style.color = "#FF9800"; // Warna Oranye saat proses
+            const currentStatus = el.innerText.toUpperCase();
             
-            // Kirim perintah ke Python -> Arduino
-            sendToPython('buka pintu');
+            // Ubah tampilan sementara agar user tahu sedang diproses
+            el.style.opacity = "0.5";
+            
+            // Cek status dan kirim perintah sebaliknya
+            if (currentStatus.includes("TERBUKA") || currentStatus.includes("OPEN")) {
+                sendToPython('kunci pintu'); // Perintah Mengunci
+            } else {
+                sendToPython('buka pintu');  // Perintah Membuka
+            }
         }
     </script>
 </body>
