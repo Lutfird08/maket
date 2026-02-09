@@ -1,86 +1,95 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <title>Kontrol Tirai</title>
+    
     <link rel="stylesheet" href="home.css">
     
     <style>
         /* Layout */
         .container {
-            padding: 80px 20px 20px;
+            padding: 40px 20px;
             display: flex;
             justify-content: center;
+            align-items: center;
+            min-height: 60vh;
         }
         
         /* Card Style */
         .curtain-card {
             background-color: white;
-            border-radius: 15px;
-            padding: 30px;
+            border-radius: 20px;
+            padding: 40px 30px;
             text-align: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             width: 100%;
-            max-width: 400px;
+            max-width: 350px;
+            transition: transform 0.2s;
         }
 
-        .curtain-icon img {
-            width: 100px;
-            margin-bottom: 20px;
+        .curtain-card:hover { transform: translateY(-5px); }
+
+        .curtain-icon {
+            width: 100px; height: 100px;
+            margin: 0 auto 25px;
+            background: #e3f2fd;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
         }
 
-        .curtain-title {
-            font-size: 20px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 5px;
-        }
+        .curtain-icon img { width: 60%; }
 
         /* Status Text */
-        .curtain-status {
-            font-size: 18px;
+        .status-title { font-size: 16px; color: #888; margin-bottom: 5px; font-family: 'Poppins', sans-serif; }
+        
+        .status-text {
+            font-size: 28px;
             font-weight: bold;
-            color: #666;
+            color: #f44336; /* Default Merah (Tertutup) */
             margin-bottom: 30px;
+            font-family: 'Montserrat', sans-serif;
         }
-        .curtain-status.moving { color: #2196F3; }
 
         /* Button Grid */
-        .button-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
+        .button-group {
+            display: flex;
             gap: 15px;
+            justify-content: center;
         }
 
         .control-button {
+            flex: 1;
             padding: 15px;
             border: none;
-            border-radius: 12px;
-            font-size: 14px;
+            border-radius: 15px;
+            font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 5px;
+            transition: transform 0.2s, box-shadow 0.2s;
             color: white;
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
         }
 
         .control-button:active { transform: scale(0.95); }
 
-        .btn-open { background-color: #4CAF50; } /* Hijau */
-        .btn-stop { background-color: #f44336; } /* Merah */
-        .btn-close { background-color: #ff9800; } /* Oranye */
+        .btn-open { 
+            background: linear-gradient(135deg, #2196F3, #1976D2); 
+            box-shadow: 0 5px 15px rgba(33, 150, 243, 0.3);
+        } 
+        
+        .btn-close { 
+            background: linear-gradient(135deg, #607D8B, #455A64); 
+            box-shadow: 0 5px 15px rgba(96, 125, 139, 0.3);
+        } 
 
-        .icon-btn { font-size: 24px; margin-bottom: 5px; }
+        .icon-btn { font-size: 24px; filter: invert(1); }
     </style>
 </head>
 <body>
+
     <div class="header">
         <div class="logo">
             <img src="https://www.unpad.ac.id/wp-content/uploads/2018/04/logo-unpad1.png" alt="Logo">
@@ -92,16 +101,18 @@
     <div class="hamburger-menu" id="hamburgerMenu">
         <span class="close-menu" onclick="toggleMenu()">×</span>
         <ul class="menu-items">
-            <li><a href="home.html">🏠 Dashboard (Kembali)</a></li>
-            <li><a href="lampu.html">Lampu</a></li>
+            <li><a href="home.html">🏠 Dashboard</a></li>
+            <li><a href="lampu.html">💡 Lampu</a></li>
             <li><a href="terminal.html">Terminal Listrik</a></li>
-            <li><a href="tirai.html" style="font-weight:bold;">🪟 Tirai</a></li>
+            <li><a href="tirai.html" style="font-weight:bold; color: #2196F3;">🪟 Tirai</a></li>
             <li><a href="kipas.html">Kipas</a></li>
             <li><a href="water.html">Saluran Air</a></li>
             <li><a href="ac.html">AC</a></li>
             <li><a href="plant.html">Penyiram Tanaman</a></li>
             <li><a href="door.html">Door Lock</a></li>
-            <li><a href="status.html">📊 Status Perangkat</a></li>
+            <li style="border-top: 1px solid #ddd; margin-top: 10px; padding-top: 10px;">
+                <a href="status.html">📊 Status Perangkat</a>
+            </li>
         </ul>
     </div>
 
@@ -111,29 +122,24 @@
                 <img src="Asset/curtains.png" alt="curtain">
             </div>
             
-            <div class="curtain-title">Tirai Ruangan</div>
+            <div class="status-title">Status Tirai Jendela</div>
             
-            <div id="curtain" class="curtain-status">Tertutup</div>
+            <div id="curtain" class="status-text">Tertutup</div>
             
-            <div class="button-container">
+            <div class="button-group">
                 <button class="control-button btn-open" onclick="moveCurtain('buka')">
-                    <span class="icon-btn">⬆️</span>
+                    <img src="Asset/open-window.png" onerror="this.src='Asset/idea.png'" width="30" style="filter: invert(1);">
                     BUKA
                 </button>
                 
-                <button class="control-button btn-stop" onclick="moveCurtain('stop')">
-                    <span class="icon-btn">⏹️</span>
-                    STOP
-                </button>
-                
                 <button class="control-button btn-close" onclick="moveCurtain('tutup')">
-                    <span class="icon-btn">⬇️</span>
+                    <img src="Asset/closed-window.png" onerror="this.src='Asset/idea.png'" width="30" style="filter: invert(1);">
                     TUTUP
                 </button>
             </div>
             
-            <p style="font-size:12px; color:#888; margin-top:20px;">
-                (Tirai akan bergerak selama 5 detik lalu berhenti otomatis)
+            <p style="font-size:12px; color:#aaa; margin-top:20px; font-style:italic;">
+                Sistem akan menggerakkan motor servo/stepper.
             </p>
         </div>
     </div>
@@ -144,26 +150,16 @@
         function moveCurtain(action) {
             const statusEl = document.getElementById('curtain');
             
+            // Ubah Tampilan Sementara (Visual Feedback)
             if (action === 'buka') {
                 statusEl.innerText = "Membuka...";
-                statusEl.className = "curtain-status moving";
-                statusEl.style.color = "#4CAF50";
-                
-                sendToPython('buka tirai'); // Sesuai perintah Python
+                statusEl.style.color = "#FF9800"; // Warna Oranye saat proses
+                sendToPython('buka tirai');
             } 
             else if (action === 'tutup') {
                 statusEl.innerText = "Menutup...";
-                statusEl.className = "curtain-status moving";
-                statusEl.style.color = "#ff9800";
-                
+                statusEl.style.color = "#FF9800";
                 sendToPython('tutup tirai');
-            }
-            else {
-                // Tombol Stop (mematikan relay motor)
-                statusEl.innerText = "Berhenti";
-                statusEl.style.color = "#f44336";
-                // Kirim perintah matikan relay tirai
-                sendToPython('matikan tirai'); 
             }
         }
     </script>
