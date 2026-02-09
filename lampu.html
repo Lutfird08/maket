@@ -1,15 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <title>Kontrol Lampu</title>
+    
     <link rel="stylesheet" href="home.css">
     
     <style>
-        /* Style Khusus Halaman Lampu */
+        /* Style Khusus Grid Halaman Lampu */
         .grid-container {
             display: grid;
             grid-template-columns: repeat(2, 1fr); /* 2 Kolom */
@@ -18,6 +18,7 @@
             max-width: 500px;
             margin: 0 auto;
         }
+
         .card {
             background: white;
             padding: 20px;
@@ -30,12 +31,18 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            border: 2px solid transparent; /* Border default transparan */
         }
+
         .card:active { transform: scale(0.95); }
+        .card:hover { box-shadow: 0 6px 12px rgba(0,0,0,0.15); }
+
         .card img { width: 50px; margin-bottom: 10px; }
+
         .card h3 { 
             font-size: 14px; margin: 0; color: #555; font-family: 'Poppins', sans-serif;
         }
+
         .status { 
             font-weight: bold; color: #f44336; margin-top: 5px; display: block; font-size: 14px;
         }
@@ -47,14 +54,16 @@
             border: 1px solid #bbdefb;
         }
 
-        /* Tombol Semua Lampu */
+        /* Tombol Semua Lampu (Lebar Penuh) */
         .card-all {
+            grid-column: span 2;
             background-color: #ffebee;
             border: 1px solid #ffcdd2;
         }
     </style>
 </head>
 <body>
+
     <div class="header">
         <div class="logo">
             <img src="https://www.unpad.ac.id/wp-content/uploads/2018/04/logo-unpad1.png" alt="Logo">
@@ -66,8 +75,8 @@
     <div class="hamburger-menu" id="hamburgerMenu">
         <span class="close-menu" onclick="toggleMenu()">×</span>
         <ul class="menu-items">
-            <li><a href="home.html">🏠 Dashboard (Kembali)</a></li>
-            <li><a href="lampu.html" style="font-weight:bold;">💡 Lampu</a></li>
+            <li><a href="home.html">🏠 Dashboard</a></li>
+            <li><a href="lampu.html" style="font-weight:bold; color: #4CAF50;">💡 Lampu</a></li>
             <li><a href="terminal.html">Terminal Listrik</a></li>
             <li><a href="tirai.html">Tirai</a></li>
             <li><a href="kipas.html">Kipas</a></li>
@@ -75,26 +84,29 @@
             <li><a href="ac.html">AC</a></li>
             <li><a href="plant.html">Penyiram Tanaman</a></li>
             <li><a href="door.html">Door Lock</a></li>
-            <li><a href="status.html">📊 Status Perangkat</a></li>
+            <li style="border-top: 1px solid #ddd; margin-top: 10px; padding-top: 10px;">
+                <a href="status.html">📊 Status Perangkat</a>
+            </li>
         </ul>
     </div>
 
     <h2 style="text-align:center; margin-top:20px; font-family: 'Montserrat', sans-serif;">Kontrol Lampu</h2>
 
     <div class="grid-container">
-        <div class="card" onclick="toggleDevice('lampu utama', 'lamp1')">
+        
+        <div class="card" onclick="toggleSpecificLight('lampu utama', 'lamp1')">
             <img src="Asset/idea.png" alt="Lampu Utama">
             <h3>Lampu Utama</h3>
             <span id="lamp1" class="status">Mati</span>
         </div>
 
-        <div class="card" onclick="toggleDevice('lampu kamar', 'lamp2')">
+        <div class="card" onclick="toggleSpecificLight('lampu kamar', 'lamp2')">
             <img src="Asset/idea.png" alt="Lampu Kamar">
             <h3>Lampu Kamar</h3>
             <span id="lamp2" class="status">Mati</span>
         </div>
 
-        <div class="card" onclick="toggleDevice('lampu tamu', 'lamp3')">
+        <div class="card" onclick="toggleSpecificLight('lampu tamu', 'lamp3')">
             <img src="Asset/idea.png" alt="Lampu Tamu">
             <h3>Lampu Tamu</h3>
             <span id="lamp3" class="status">Mati</span>
@@ -106,45 +118,41 @@
             <span id="all-status" class="status" style="color:#555;">Klik utk Toggle</span>
         </div>
 
-        <div class="card card-auto" onclick="toggleDevice('otomatis lampu', 'auto-lamp')">
+        <div class="card card-auto" onclick="toggleSpecificLight('otomatis lampu', 'auto-lamp')">
             <img src="Asset/ai.png" onerror="this.src='Asset/idea.png'" alt="Auto" width="40">
-            <h3>Mode Otomatis (Sensor Cahaya)</h3>
+            <h3>Mode Otomatis</h3>
             <span id="auto-lamp" class="status">Mati</span>
         </div>
+
     </div>
 
     <script src="home.js"></script>
     
     <script>
-        // Fungsi untuk toggle satu lampu
-        function toggleDevice(name, id) {
-            const el = document.getElementById(id);
-            const currentStatus = el.innerText;
+        // Fungsi untuk toggle satu lampu spesifik
+        function toggleSpecificLight(deviceName, elementId) {
+            const element = document.getElementById(elementId);
+            const currentText = element.innerText.toUpperCase(); // Ambil teks saat ini (NYALA/MATI)
             
             let command = "";
-            
-            // Logika Toggle Sederhana
-            if (currentStatus === 'Nyala' || currentStatus === 'ON') {
-                command = "matikan " + name;
+
+            // Cek status, kirim perintah sebaliknya
+            if (currentText.includes("NYALA") || currentText.includes("ON") || currentText.includes("HIDUP")) {
+                command = "matikan " + deviceName;
             } else {
-                command = "nyalakan " + name;
-            }
-            
-            // Khusus Mode Otomatis bahasanya beda dikit di Python
-            if (name === 'otomatis lampu') {
-                 if (currentStatus === 'Nyala') command = "matikan otomatis lampu";
-                 else command = "nyalakan otomatis lampu";
+                command = "nyalakan " + deviceName;
             }
 
-            // Kirim ke Python lewat fungsi global di home.js
+            // Kirim ke Python via home.js
             sendToPython(command);
         }
 
         // Fungsi Toggle Semua Lampu
         function toggleAllLights() {
-            // Cek status lampu 1 sebagai patokan
-            const l1 = document.getElementById('lamp1').innerText;
-            if (l1 === 'Nyala' || l1 === 'ON') {
+            // Kita pakai status Lampu Utama (lamp1) sebagai patokan
+            const l1 = document.getElementById('lamp1').innerText.toUpperCase();
+            
+            if (l1.includes("NYALA") || l1.includes("ON")) {
                 sendToPython('matikan semua lampu');
             } else {
                 sendToPython('nyalakan semua lampu');
