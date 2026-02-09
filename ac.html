@@ -1,89 +1,104 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <title>Kontrol AC</title>
+    
     <link rel="stylesheet" href="home.css">
     
     <style>
-        /* Layout Grid */
-        .grid-container {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-            padding: 20px;
-            max-width: 500px;
-            margin: 0 auto;
-        }
-        
-        /* Card Style */
-        .ac-card {
-            background-color: white;
-            border-radius: 15px;
-            padding: 20px;
+        /* Style Khusus Halaman AC */
+        .ac-container {
             display: flex;
             flex-direction: column;
             align-items: center;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            text-align: center;
+            gap: 20px;
+            padding: 20px;
+            max-width: 400px;
+            margin: 0 auto;
         }
 
-        .ac-icon img { width: 60px; margin-bottom: 10px; }
-        .ac-card h3 { margin: 0; font-size: 16px; color: #555; }
+        .ac-card {
+            background-color: white;
+            border-radius: 20px;
+            padding: 30px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.2s;
+        }
+
+        .ac-card:hover { transform: translateY(-5px); }
+
+        .ac-icon img { width: 80px; margin-bottom: 15px; }
         
+        .ac-card h3 { 
+            margin: 0; font-size: 18px; color: #555; font-family: 'Poppins', sans-serif; 
+        }
+
         /* Status Text */
         .status { 
-            font-weight: bold; color: #f44336; margin-top: 5px; font-size: 18px; 
+            font-weight: bold; color: #f44336; margin-top: 10px; font-size: 24px; display: block;
         }
 
         /* Tombol Power Besar */
         .btn-power {
-            background-color: #f44336; /* Merah */
+            background-color: #f44336; /* Merah Default */
             color: white;
             border: none;
-            width: 60px; height: 60px;
+            width: 70px; height: 70px;
             border-radius: 50%;
             font-size: 24px;
             cursor: pointer;
-            margin-top: 15px;
-            box-shadow: 0 4px 10px rgba(244, 67, 54, 0.3);
-            transition: transform 0.2s;
+            margin-top: 20px;
+            box-shadow: 0 5px 15px rgba(244, 67, 54, 0.4);
             display: flex; align-items: center; justify-content: center;
+            transition: all 0.3s ease;
         }
-        .btn-power:active { transform: scale(0.95); }
+        
+        .btn-power:active { transform: scale(0.9); }
+        .btn-power img { width: 30px; filter: invert(1); }
 
         /* Kontrol Suhu */
         .temp-display {
-            font-size: 36px;
+            font-size: 48px;
             font-weight: bold;
             color: #333;
-            margin: 10px 0;
+            margin: 15px 0;
+            font-family: 'Montserrat', sans-serif;
         }
+
         .temp-controls {
             display: flex;
-            gap: 15px;
+            gap: 20px;
             margin-top: 10px;
         }
+
         .btn-temp {
-            width: 45px; height: 45px;
-            border-radius: 50%;
-            border: 2px solid #ddd;
-            background: white;
-            font-size: 20px;
+            width: 50px; height: 50px;
+            border-radius: 12px;
+            border: none;
+            background: #e3f2fd;
+            font-size: 24px;
             font-weight: bold;
-            color: #555;
+            color: #1976D2;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: background 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        .btn-temp:hover { border-color: #333; color: #333; }
-        .btn-temp:active { background: #eee; }
+
+        .btn-temp:active { transform: scale(0.95); }
+        .btn-temp:hover { background: #bbdefb; }
 
     </style>
 </head>
 <body>
+
     <div class="header">
         <div class="logo">
             <img src="https://www.unpad.ac.id/wp-content/uploads/2018/04/logo-unpad1.png" alt="Logo">
@@ -95,43 +110,48 @@
     <div class="hamburger-menu" id="hamburgerMenu">
         <span class="close-menu" onclick="toggleMenu()">×</span>
         <ul class="menu-items">
-            <li><a href="home.html">🏠 Dashboard (Kembali)</a></li>
-            <li><a href="lampu.html">Lampu</a></li>
+            <li><a href="home.html">🏠 Dashboard</a></li>
+            <li><a href="lampu.html">💡 Lampu</a></li>
             <li><a href="terminal.html">Terminal Listrik</a></li>
             <li><a href="tirai.html">Tirai</a></li>
             <li><a href="kipas.html">Kipas</a></li>
             <li><a href="water.html">Saluran Air</a></li>
-            <li><a href="ac.html" style="font-weight:bold;">❄️ AC</a></li>
+            <li><a href="ac.html" style="font-weight:bold; color: #2196F3;">❄️ AC</a></li>
             <li><a href="plant.html">Penyiram Tanaman</a></li>
             <li><a href="door.html">Door Lock</a></li>
-            <li><a href="status.html">📊 Status Perangkat</a></li>
+            <li style="border-top: 1px solid #ddd; margin-top: 10px; padding-top: 10px;">
+                <a href="status.html">📊 Status Perangkat</a>
+            </li>
         </ul>
     </div>
 
     <h2 style="text-align:center; margin-top:20px; font-family: 'Montserrat', sans-serif;">Kontrol AC</h2>
 
-    <div class="grid-container">
+    <div class="ac-container">
+        
         <div class="ac-card">
             <div class="ac-icon"><img src="Asset/ac.png" alt="ac"></div>
             <h3>Status AC</h3>
+            
             <span id="status-ac" class="status">Mati</span>
             
             <button class="btn-power" onclick="toggleAC()">
-                <img src="Asset/power.png" onerror="this.src='Asset/idea.png'" alt="P" style="width:24px; filter: invert(1);">
+                <img src="Asset/idea.png" alt="Power">
             </button>
         </div>
 
         <div class="ac-card">
             <div class="ac-icon"><img src="Asset/temperature.png" onerror="this.src='Asset/ac.png'" alt="temp"></div>
-            <h3>Suhu Target</h3>
+            <h3>Pengaturan Suhu</h3>
             
             <div id="temp-val" class="temp-display">24°C</div>
             
             <div class="temp-controls">
-                <button class="btn-temp" onclick="changeTemp(-1)">-</button>
+                <button class="btn-temp" onclick="changeTemp(-1)">−</button>
                 <button class="btn-temp" onclick="changeTemp(1)">+</button>
             </div>
         </div>
+
     </div>
 
     <script src="home.js"></script>
@@ -140,31 +160,37 @@
         // Logika Toggle Power AC
         function toggleAC() {
             const el = document.getElementById('status-ac');
-            const current = el.innerText;
+            const currentStatus = el.innerText.toUpperCase();
             
-            if (current === 'Nyala' || current === 'ON') {
-                sendToPython('matikan ac');
+            let command = "";
+            
+            // Cek status saat ini
+            if (currentStatus.includes("NYALA") || currentStatus.includes("ON") || currentStatus.includes("HIDUP")) {
+                command = "matikan ac"; // Perintah natural ke Python
             } else {
-                sendToPython('nyalakan ac');
+                command = "nyalakan ac";
             }
+            
+            sendToPython(command);
         }
 
-        // Logika Ubah Suhu
-        // Karena Arduino tidak mengirim balik angka suhu, kita simulasikan angka di web
-        // Tapi tetap mengirim perintah "naikkan/turunkan" ke Arduino
+        // Logika Ubah Suhu (Simulasi Visual + Kirim Perintah)
+        // Kita simpan variabel lokal sementara sampai Python kirim update real
         let currentTemp = 24; 
 
         function changeTemp(change) {
+            // Update variabel lokal
             currentTemp += change;
             
-            // Batasi suhu logis (16 - 30 derajat)
+            // Batas Logis Suhu AC (16 - 30 Derajat)
             if (currentTemp < 16) currentTemp = 16;
             if (currentTemp > 30) currentTemp = 30;
 
-            // Update tampilan angka
+            // Update Tampilan Angka di Web (Agar responsif)
             document.getElementById('temp-val').innerText = currentTemp + "°C";
 
-            // Kirim perintah MQTT ke Python -> Arduino
+            // Kirim Perintah Spesifik ke Python
+            // Python akan menerjemahkan ini ke 'ac_naik' atau 'ac_turun'
             if (change > 0) {
                 sendToPython('naikkan suhu ac');
             } else {
