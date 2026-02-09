@@ -1,18 +1,18 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <title>Kontrol Tanaman</title>
+    
     <link rel="stylesheet" href="home.css">
     
     <style>
         /* Layout Grid */
         .grid-container {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 20px;
             padding: 20px;
             max-width: 500px;
@@ -22,35 +22,53 @@
         /* Card Style */
         .plant-card {
             background-color: white;
-            border-radius: 15px;
-            padding: 20px;
+            border-radius: 20px;
+            padding: 30px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
             text-align: center;
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .plant-card:hover { 
+            transform: translateY(-5px); 
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
         }
 
         .plant-card:active { transform: scale(0.95); }
 
-        .plant-icon img { width: 60px; margin-bottom: 10px; }
-        .plant-card h3 { margin: 0; font-size: 14px; color: #555; }
+        .plant-icon {
+            width: 80px; height: 80px;
+            background: #f1f8e9;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 15px;
+        }
+
+        .plant-icon img { width: 60%; }
+        
+        .plant-card h3 { margin: 0; font-size: 16px; color: #555; font-family: 'Poppins', sans-serif; }
         
         /* Status Text */
         .status { 
-            font-weight: bold; color: #f44336; margin-top: 5px; font-size: 16px; 
+            font-weight: bold; color: #f44336; margin-top: 10px; font-size: 18px; display: block;
         }
 
-        /* Card Khusus Auto */
+        /* Card Khusus Auto (Hijau) */
         .card-auto {
-            background-color: #e8f5e9; /* Hijau muda */
+            background-color: #e8f5e9; 
             border: 1px solid #c8e6c9;
         }
+        
+        .card-auto h3 { color: #2e7d32; }
     </style>
 </head>
 <body>
+
     <div class="header">
         <div class="logo">
             <img src="https://www.unpad.ac.id/wp-content/uploads/2018/04/logo-unpad1.png" alt="Logo">
@@ -62,25 +80,28 @@
     <div class="hamburger-menu" id="hamburgerMenu">
         <span class="close-menu" onclick="toggleMenu()">×</span>
         <ul class="menu-items">
-            <li><a href="home.html">🏠 Dashboard (Kembali)</a></li>
-            <li><a href="lampu.html">Lampu</a></li>
+            <li><a href="home.html">🏠 Dashboard</a></li>
+            <li><a href="lampu.html">💡 Lampu</a></li>
             <li><a href="terminal.html">Terminal Listrik</a></li>
             <li><a href="tirai.html">Tirai</a></li>
             <li><a href="kipas.html">Kipas</a></li>
             <li><a href="water.html">Saluran Air</a></li>
             <li><a href="ac.html">AC</a></li>
-            <li><a href="plant.html" style="font-weight:bold;">🌱 Penyiram Tanaman</a></li>
+            <li><a href="plant.html" style="font-weight:bold; color: #4CAF50;">🌱 Penyiram Tanaman</a></li>
             <li><a href="door.html">Door Lock</a></li>
-            <li><a href="status.html">📊 Status Perangkat</a></li>
+            <li style="border-top: 1px solid #ddd; margin-top: 10px; padding-top: 10px;">
+                <a href="status.html">📊 Status Perangkat</a>
+            </li>
         </ul>
     </div>
 
     <h2 style="text-align:center; margin-top:20px; font-family: 'Montserrat', sans-serif;">Penyiram Tanaman</h2>
 
     <div class="grid-container">
+        
         <div class="plant-card" onclick="togglePump()">
             <div class="plant-icon">
-                <img src="Asset/plant.png" onerror="this.src='Asset/water-pump.png'" alt="pompa">
+                <img src="Asset/plant.png" alt="pompa">
             </div>
             <h3>Pompa Air Manual</h3>
             
@@ -88,18 +109,18 @@
         </div>
 
         <div class="plant-card card-auto" onclick="toggleAutoPump()">
-            <div class="plant-icon">
-                <img src="Asset/automation.png" onerror="this.src='Asset/ai.png'" alt="auto">
+            <div class="plant-icon" style="background: #c8e6c9;">
+                <img src="Asset/automation.png" onerror="this.src='Asset/plant.png'" alt="auto">
             </div>
-            <h3>Mode Otomatis (Sensor Tanah)</h3>
+            <h3>Mode Otomatis (Sensor)</h3>
             
             <span id="auto-pump" class="status">Mati</span>
         </div>
     </div>
-
-    <div style="text-align: center; margin-top: 20px;">
-        
-    </div>
+    
+    <p style="text-align: center; color: #888; font-size: 12px; margin-top: 10px;">
+        Klik kartu untuk menyalakan/mematikan.
+    </p>
 
     <script src="home.js"></script>
 
@@ -107,26 +128,29 @@
         // Logika Toggle Pompa Manual
         function togglePump() {
             const el = document.getElementById('pump');
-            const current = el.innerText;
+            const currentStatus = el.innerText.toUpperCase();
             
-            // Kirim perintah ke Python (Sesuai dengan logic NLP yang sudah dilatih)
-            if (current === 'Nyala' || current === 'ON') {
-                sendToPython('matikan pompa');
+            let command = "";
+            if (currentStatus.includes("NYALA") || currentStatus.includes("ON") || currentStatus.includes("HIDUP")) {
+                command = "matikan pompa";
             } else {
-                sendToPython('nyalakan pompa');
+                command = "nyalakan pompa";
             }
+            sendToPython(command);
         }
 
         // Logika Toggle Mode Otomatis
         function toggleAutoPump() {
             const el = document.getElementById('auto-pump');
-            const current = el.innerText;
+            const currentStatus = el.innerText.toUpperCase();
             
-            if (current === 'Nyala' || current === 'ON') {
-                sendToPython('matikan otomatis pompa');
+            let command = "";
+            if (currentStatus.includes("NYALA") || currentStatus.includes("ON") || currentStatus.includes("HIDUP")) {
+                command = "matikan otomatis pompa";
             } else {
-                sendToPython('nyalakan otomatis pompa');
+                command = "nyalakan otomatis pompa";
             }
+            sendToPython(command);
         }
     </script>
 </body>
