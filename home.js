@@ -2,7 +2,7 @@
 // 🔗 KONFIGURASI KONEKSI (NGROK)
 // ==========================================
 // ⚠️ GANTI LINK INI SETIAP KALI NGROK DI-RESTART
-const API_BASE_URL = "https://renascent-scoffingly-kimiko.ngrok-free.dev"; 
+const API_BASE_URL = "https://utc-geography-philip-helena.trycloudflare.com"; 
 
 // ==========================================
 // 🗺️ MAPPING PERANGKAT (Python Key -> HTML ID)
